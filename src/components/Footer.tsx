@@ -144,14 +144,7 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="footer-bottom-bar">
-          <div>
-            <span>© {CURRENT_YEAR} Oldish (Restaurant &amp; Café). {isRTL ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}</span>
-            <div style={{ fontSize: '0.75rem', color: '#777', marginTop: '4px' }}>
-              {isRTL 
-                ? 'نسخة تجريبية لعرض مقترح الموقع على إدارة مطعم وكافيه أولديش.' 
-                : 'Commercial sales proposal & demo web presence for Oldish Restaurant & Café.'}
-            </div>
-          </div>
+          <span>© {CURRENT_YEAR} Oldish (Restaurant &amp; Café). {isRTL ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}</span>
 
           <button
             type="button"

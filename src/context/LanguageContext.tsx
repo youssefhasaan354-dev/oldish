@@ -154,10 +154,6 @@ const UI_TRANSLATIONS: Record<string, { en: string; ar: string }> = {
   'footer.quickLinks': { en: 'Quick Navigation', ar: 'روابط سريعة' },
   'footer.contactInfo': { en: 'Direct Contact', ar: 'التواصل المباشر' },
   'footer.rights': { en: 'All rights reserved.', ar: 'جميع الحقوق محفوظة.' },
-  'footer.confidentiality': { 
-    en: 'Commercial proposal & production-ready website implementation for Oldish Restaurant & Café, Cairo.', 
-    ar: 'مقترح وموقع ويب إنتاجي متكامل مصمم خصيصاً لمطعم ومقهى أولديش، القاهرة.' 
-  },
   'common.close': { en: 'Close', ar: 'إغلاق' },
   'common.next': { en: 'Next', ar: 'التالي' },
   'common.prev': { en: 'Previous', ar: 'السابق' },

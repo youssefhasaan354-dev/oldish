@@ -194,7 +194,7 @@ export const AdminQrGenerator: React.FC = () => {
 
           {/* Quick presets */}
           <div style={{ marginTop: '12px' }}>
-            <div style={{ fontSize: '0.8125rem', color: '#666', marginBottom: '8px' }}>ألوان مقترحة بهوية أولديش:</div>
+            <div style={{ fontSize: '0.8125rem', color: '#666', marginBottom: '8px' }}>ألوان هوية أولديش:</div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 type="button"

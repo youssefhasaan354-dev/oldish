@@ -9,7 +9,7 @@
 
 This repository contains the complete, production-quality website engineered for **Oldish Restaurant & Café**. Built to agency commercial standards, it combines the editorial discipline, responsive component architecture, and refined microinteractions of the hospitality technical design guidelines with Oldish’s authentic vintage Cairo identity.
 
-The website is fully implemented, responsive across all viewports, bilingual (English & Arabic with complete RTL layout support), and ready to present to the restaurant owner as a live commercial proposal.
+The website is fully implemented, responsive across all viewports, bilingual (English & Arabic with complete RTL layout support), and ready for production deployment.
 
 ---
 
