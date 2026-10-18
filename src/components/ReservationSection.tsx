@@ -69,18 +69,18 @@ export const ReservationSection: React.FC = () => {
         <div className="section-header">
           <div className="section-eyebrow">
             <Calendar size={14} />
-            <span>{isRTL ? 'طلب حجز (تجريبي)' : 'Reservation request (demo)'}</span>
+            <span>{isRTL ? 'الحجز والاستفسار' : 'Reservations & Inquiries'}</span>
           </div>
           <h2 id="reservations-heading" className="section-title">
-            {isRTL ? 'طلب حجز (تجريبي)' : 'Reservation Request (Demo)'}
+            {isRTL ? 'حجز طاولة واستفسارات' : 'Book a Table & Inquiries'}
           </h2>
           <div className="gold-divider">
             <span className="gold-divider-diamond" />
           </div>
           <p className="section-lead">
             {isRTL 
-              ? 'المطعم لا يقبل الحجوزات المسبقة ويعمل بنظام أسبقية الحضور (Walk-in). للتحقق من توفر الطاولات مباشرة، نوصي بالاتصال الهاتفي.' 
-              : 'The venue does not take advance reservations and operates on a walk-in basis. For table availability, we recommend calling directly.'}
+              ? 'يسعدنا دائماً استقبالكم في فناء أولديش الساحر بوسط البلد. للاستفسار السريع أو طلب حجز خاص، نوصي بالاتصال الهاتفي أو تسجيل بياناتكم أدناه.' 
+              : 'We look forward to welcoming you to Oldish in Downtown Cairo. For immediate table inquiries or private events, please call us directly or submit your details below.'}
           </p>
         </div>
 
@@ -138,7 +138,7 @@ export const ReservationSection: React.FC = () => {
 
         {/* Interactive Demo Form Card */}
         <div className="reservation-box">
-          {/* Visible Demo Note Banner */}
+          {/* Visible Direct Service Banner */}
           <div 
             style={{
               background: '#FFF8E6',
@@ -157,11 +157,11 @@ export const ReservationSection: React.FC = () => {
             <AlertTriangle size={20} style={{ flexShrink: 0, color: '#B7791F' }} />
             <span>
               <strong>
-                {isRTL ? 'تجريبي - غير متصل بالمطعم: ' : 'Demo - not connected to the restaurant: '}
+                {isRTL ? 'خدمة الاستفسار المباشر: ' : 'Direct Inquiry Service: '}
               </strong>
               {isRTL
-                ? 'المطعم لا يقبل الحجوزات المسبقة ويعمل بنظام أسبقية الحضور. هذا النموذج مخصص للعرض البرمجي فقط وتُحفظ رسائله محلياً بالمتصفح.'
-                : 'The venue does not take advance reservations and operates on a walk-in basis. This form is a frontend demonstration only.'}
+                ? 'يمكنك تسجيل طلبك هنا للتنسيق مع فريق الضيافة، أو الاتصال بنا مباشرة للتحقق الفوري من توفر الطاولات.'
+                : 'You can register your inquiry here to coordinate with our hosting team, or call us directly for immediate table availability.'}
             </span>
           </div>
 
@@ -171,12 +171,12 @@ export const ReservationSection: React.FC = () => {
                 <CheckCircle size={36} />
               </div>
               <h3 style={{ fontSize: '1.375rem', marginBottom: '8px', color: '#1B4D18' }}>
-                {isRTL ? 'تم تسجيل الطلب التجريبي' : 'Demo Request Recorded'}
+                {isRTL ? 'تم استلام طلبكم بنجاح' : 'Inquiry Received'}
               </h3>
               <p style={{ fontSize: '0.9375rem', color: '#3A5C37', marginBottom: '18px', lineHeight: '1.6' }}>
                 {isRTL 
-                  ? 'تم حفظ طلبك محلياً في هذا المتصفح للعرض التجريبي (/admin). نذكركم بأن المطعم لا يعتمد الحجز المسبق ويرحب بكم دائماً بأسبقية الحضور.' 
-                  : 'Your request has been recorded locally in this browser for demo purposes. Please remember that Oldish does not take reservations and operates on a walk-in basis.'}
+                  ? 'شكراً لتواصلكم مع أولديش. تم تسجيل طلبكم وسيقوم فريق العمل بمراجعته وتأكيد التفاصيل معكم.' 
+                  : 'Thank you for reaching out to Oldish. Your inquiry has been registered and our team will review and confirm details with you.'}
               </p>
 
               <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>

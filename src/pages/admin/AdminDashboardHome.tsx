@@ -131,13 +131,13 @@ export const AdminDashboardHome: React.FC<Props> = ({ onNavigateTab }) => {
           </div>
         </div>
 
-        <div className="admin-stat-card" onClick={() => onNavigateTab('media')} style={{ cursor: 'pointer' }}>
+        <div className="admin-stat-card" onClick={() => onNavigateTab('slots')} style={{ cursor: 'pointer' }}>
           <div className="stat-icon-wrap" style={{ background: 'rgba(83, 99, 75, 0.15)', color: 'var(--color-muted-olive)' }}>
             <Image size={22} />
           </div>
           <div>
             <div className="stat-value">{mediaList.length}</div>
-            <div className="stat-label">ملفات الوسائط ({aiMediaCount} توضيحية)</div>
+            <div className="stat-label">سجل مواضع الصور (Image Slots)</div>
           </div>
         </div>
 
@@ -158,6 +158,58 @@ export const AdminDashboardHome: React.FC<Props> = ({ onNavigateTab }) => {
           <div>
             <div className="stat-value">{branches.length}</div>
             <div className="stat-label">الفروع (Downtown + Zamalek)</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Local Click Analytics Card (Part C #5) */}
+      <div className="admin-card" style={{ marginTop: '20px' }}>
+        <div className="admin-card-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Sparkles size={20} style={{ color: 'var(--color-gold)' }} />
+            <h3 style={{ margin: 0, fontSize: '1.125rem' }}>
+              إحصائيات تفاعل ونقرات الزوار (Privacy-Friendly Click Analytics)
+            </h3>
+          </div>
+          <span style={{ fontSize: '0.75rem', color: '#718096' }}>
+            تُحسب محلياً بدون ملفات تعريف ارتباط (No Cookies / Fully Private)
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '14px', textAlign: 'center' }}>
+          <div style={{ background: '#F8F9FA', padding: '12px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-gold)' }}>
+              {siteSettings.analytics_clicks?.calls || 0}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>📞 نقرات الاتصال</div>
+          </div>
+
+          <div style={{ background: '#F8F9FA', padding: '12px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#38A169' }}>
+              {siteSettings.analytics_clicks?.whatsapp_clicks || 0}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>💬 محادثات واتساب</div>
+          </div>
+
+          <div style={{ background: '#F8F9FA', padding: '12px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#3182CE' }}>
+              {siteSettings.analytics_clicks?.directions || 0}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>📍 طلبات الاتجاهات</div>
+          </div>
+
+          <div style={{ background: '#F8F9FA', padding: '12px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#D69E2E' }}>
+              {siteSettings.analytics_clicks?.menu_views || 0}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>📖 استعراض المنيو</div>
+          </div>
+
+          <div style={{ background: '#F8F9FA', padding: '12px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#805AD5' }}>
+              {inquiries.length}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>📝 طلبات الطاولات</div>
           </div>
         </div>
       </div>

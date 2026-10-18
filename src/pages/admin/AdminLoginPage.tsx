@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../../admin.css';
 import { useAuth } from '../../context/AuthContext';
 import { Shield, Key, Mail, AlertCircle, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -120,7 +121,7 @@ export const AdminLoginPage: React.FC = () => {
                 type="button"
                 className="btn btn-outline-gold btn-sm"
                 style={{ fontSize: '0.75rem', padding: '6px 4px' }}
-                onClick={() => handleQuickLogin('owner@oldish.eg', 'oldish2026')}
+                onClick={() => handleQuickLogin('owner@oldish.eg', 'demo123456')}
               >
                 👑 المالك (Owner)
               </button>
@@ -128,7 +129,7 @@ export const AdminLoginPage: React.FC = () => {
                 type="button"
                 className="btn btn-outline-light btn-sm"
                 style={{ fontSize: '0.75rem', padding: '6px 4px', color: '#333', borderColor: '#ccc' }}
-                onClick={() => handleQuickLogin('manager@oldish.eg', 'oldish2026')}
+                onClick={() => handleQuickLogin('manager@oldish.eg', 'demo123456')}
               >
                 ✍️ محرر (Editor)
               </button>
@@ -136,13 +137,13 @@ export const AdminLoginPage: React.FC = () => {
                 type="button"
                 className="btn btn-outline-light btn-sm"
                 style={{ fontSize: '0.75rem', padding: '6px 4px', color: '#333', borderColor: '#ccc' }}
-                onClick={() => handleQuickLogin('auditor@oldish.eg', 'oldish2026')}
+                onClick={() => handleQuickLogin('auditor@oldish.eg', 'demo123456')}
               >
                 👁️ مشاهد (Viewer)
               </button>
             </div>
             <div style={{ fontSize: '0.75rem', color: '#777', textAlign: 'center', background: '#F9F7F4', padding: '6px 10px', borderRadius: '4px' }}>
-              كلمة المرور التجريبية: <code style={{ fontWeight: 700, color: '#886E42' }}>oldish2026</code>
+              كلمة المرور التجريبية: <code style={{ fontWeight: 700, color: '#886E42' }}>demo123456</code>
             </div>
           </div>
         )}

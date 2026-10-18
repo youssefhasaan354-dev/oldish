@@ -61,7 +61,7 @@ The website is fully implemented, responsive across all viewports, bilingual (En
 ### 6. Table Reservation Flow
 - Clear operational policy: Informs guests that submissions are forwarded to the dining host manager for telephone/SMS confirmation within 2 hours.
 - Validates name, phone number (+20), date, time, party size, and seating preference (Outdoor Courtyard vs. Indoor Salon).
-- Generates a real reference code (e.g. `OLD-XXXXXX`) with an instant confirmation card.
+- Direct submission to host team with instant confirmation feedback.
 
 ### 7. Locations & Contact
 - **Downtown Cairo (Primary Branch)**: 20 Mohammed Mahmoud Street (behind Greek Campus, Abdeen). Features interactive Google Maps embed, directions guide, and click-to-call.

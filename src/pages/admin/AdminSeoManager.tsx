@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
 import { 
   Search, 
@@ -7,7 +7,8 @@ import {
   AlertTriangle, 
   Save, 
   Check, 
-  Copy 
+  Copy,
+  Download 
 } from 'lucide-react';
 
 export const AdminSeoManager: React.FC = () => {
@@ -15,6 +16,7 @@ export const AdminSeoManager: React.FC = () => {
   const [form, setForm] = useState({ ...siteSettings });
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+  const [todayDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +29,18 @@ export const AdminSeoManager: React.FC = () => {
     navigator.clipboard.writeText(text);
     setCopiedSection(sectionKey);
     setTimeout(() => setCopiedSection(null), 2500);
+  };
+
+  const handleDownloadFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   // Structured Data JSON-LD
@@ -76,21 +90,23 @@ export const AdminSeoManager: React.FC = () => {
     : `# Oldish Production\nUser-agent: *\nAllow: /\n\nSitemap: ${form.site_domain || 'https://oldish.eg'}/sitemap.xml\n`;
 
   // Dynamic Sitemap.xml preview
-  const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+  const sitemapXml = useMemo(() => {
+    return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>${form.site_domain || 'https://oldish.eg'}/</loc>
-    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <lastmod>${todayDate}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>${form.site_domain || 'https://oldish.eg'}/menu</loc>
-    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <lastmod>${todayDate}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 </urlset>`;
+  }, [form.site_domain, todayDate]);
 
   return (
     <div className="admin-page-container">
@@ -219,7 +235,7 @@ export const AdminSeoManager: React.FC = () => {
           <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', overflow: 'hidden', maxWidth: '520px' }}>
             <div style={{ height: '220px', background: '#222', position: 'relative', overflow: 'hidden' }}>
               <img 
-                src="/images/oldish_courtyard_hero.jpg" 
+                src="/images/oldish_courtyard_hero.webp" 
                 alt="Oldish Courtyard" 
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
               />
@@ -279,19 +295,42 @@ export const AdminSeoManager: React.FC = () => {
           </pre>
         </div>
 
-        {/* Robots.txt & Sitemap.xml Previews */}
+        {/* Robots.txt & Sitemap.xml Previews & Manual Download Banner */}
+        <div style={{ background: '#FFFDF9', border: '1px solid #EEDFBA', padding: '16px 20px', borderRadius: '8px', marginBottom: '20px', lineHeight: 1.6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8A6D2D', fontWeight: 700, marginBottom: '6px' }}>
+            <AlertTriangle size={18} />
+            <span>آلية عمل ملفات الفهرسة (Robots.txt & Sitemap) وتوضيح التشغيل</span>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.8125rem', color: '#5C4813' }}>
+            • <strong>الوضع الفعلي للموقع حالياً:</strong> ملف <code>public/robots.txt</code> في الموقع مضبوط بشكل صارم على <code>Disallow: /</code> ولا يوجد ملف sitemap مفعل، وذلك لمنع محركات البحث من أرشفة الموقع التجريبي قبل اعتماده رسمياً.<br />
+            • <strong>طريقة العمل:</strong> الأكواد المعروضة أدناه هي <strong>نصوص وتوليدات قابلة للنسخ والتحميل اليدوي</strong> بناءً على النطاق المدخل أعلاه، وليست مخدومة ديناميكياً من الخادم. عند قرار الإطلاق الرسمي (Go-Live)، يمكنك تحميل أو نسخ محتوى الملفين ووضعهما في مجلد <code>public/</code> بالمشروع.
+          </p>
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
           <div className="admin-card">
             <div className="admin-card-header">
-              <h4 style={{ margin: 0, fontSize: '0.9375rem' }}>ملف robots.txt المولد</h4>
-              <button
-                type="button"
-                className="btn btn-outline-gold btn-sm"
-                onClick={() => copyToClipboard(robotsTxt, 'robots')}
-              >
-                {copiedSection === 'robots' ? <Check size={13} /> : <Copy size={13} />}
-                <span>نسخ</span>
-              </button>
+              <h4 style={{ margin: 0, fontSize: '0.9375rem' }}>محتوى robots.txt المقترح للإطلاق (ملف يدوي)</h4>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline-gold btn-sm"
+                  onClick={() => copyToClipboard(robotsTxt, 'robots')}
+                  title="نسخ المحتوى إلى الحافظة"
+                >
+                  {copiedSection === 'robots' ? <Check size={13} /> : <Copy size={13} />}
+                  <span>نسخ</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-gold btn-sm"
+                  onClick={() => handleDownloadFile(robotsTxt, 'robots.txt', 'text/plain')}
+                  title="تحميل كملف robots.txt لوضعه في public/"
+                >
+                  <Download size={13} />
+                  <span>تحميل</span>
+                </button>
+              </div>
             </div>
             <pre dir="ltr" style={{ background: '#F8F9FA', padding: '12px', borderRadius: '4px', fontSize: '0.8125rem', color: '#333' }}>
               {robotsTxt}
@@ -300,15 +339,27 @@ export const AdminSeoManager: React.FC = () => {
 
           <div className="admin-card">
             <div className="admin-card-header">
-              <h4 style={{ margin: 0, fontSize: '0.9375rem' }}>ملف sitemap.xml المولد</h4>
-              <button
-                type="button"
-                className="btn btn-outline-gold btn-sm"
-                onClick={() => copyToClipboard(sitemapXml, 'sitemap')}
-              >
-                {copiedSection === 'sitemap' ? <Check size={13} /> : <Copy size={13} />}
-                <span>نسخ</span>
-              </button>
+              <h4 style={{ margin: 0, fontSize: '0.9375rem' }}>محتوى sitemap.xml المقترح للإطلاق (ملف يدوي)</h4>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline-gold btn-sm"
+                  onClick={() => copyToClipboard(sitemapXml, 'sitemap')}
+                  title="نسخ المحتوى إلى الحافظة"
+                >
+                  {copiedSection === 'sitemap' ? <Check size={13} /> : <Copy size={13} />}
+                  <span>نسخ</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-gold btn-sm"
+                  onClick={() => handleDownloadFile(sitemapXml, 'sitemap.xml', 'application/xml')}
+                  title="تحميل كملف sitemap.xml لوضعه في public/"
+                >
+                  <Download size={13} />
+                  <span>تحميل</span>
+                </button>
+              </div>
             </div>
             <pre dir="ltr" style={{ background: '#F8F9FA', padding: '12px', borderRadius: '4px', fontSize: '0.8125rem', color: '#333', maxHeight: '160px', overflowY: 'auto' }}>
               {sitemapXml}

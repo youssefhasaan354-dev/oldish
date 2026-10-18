@@ -1,12 +1,12 @@
 import React from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
-import { Phone, Calendar, Navigation, Utensils } from 'lucide-react';
+import { Phone, Calendar, Navigation, Utensils, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const FloatingActions: React.FC = () => {
   const { isRTL } = useLanguage();
-  const { siteSettings } = useData();
+  const { siteSettings, trackClick } = useData();
 
   const handleReserveClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -14,11 +14,21 @@ export const FloatingActions: React.FC = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const cleanWhatsapp = siteSettings.whatsapp.replace(/[^0-9]/g, '');
+  const hasWhatsapp = Boolean(siteSettings.whatsapp && siteSettings.whatsapp.trim());
+
+  const whatsappMessage = encodeURIComponent(
+    isRTL 
+      ? 'مرحباً، أود الاستفسار عن حجز طاولة وقائمة الطعام في مطعم وكافيه أولديش.' 
+      : 'Hello! I would like to inquire about table reservations and the menu at Oldish.'
+  );
+
   return (
     <aside className="mobile-floating-bar" aria-label="Quick Mobile Actions">
       {/* Call */}
       <a
         href={`tel:${siteSettings.phone.replace(/\s+/g, '')}`}
+        onClick={() => trackClick('calls')}
         className="floating-action-item"
         aria-label="Call Oldish Restaurant"
       >
@@ -26,9 +36,25 @@ export const FloatingActions: React.FC = () => {
         <span>{isRTL ? 'اتصال' : 'Call'}</span>
       </a>
 
+      {/* WhatsApp (only if set) */}
+      {hasWhatsapp && (
+        <a
+          href={`https://wa.me/${cleanWhatsapp}?text=${whatsappMessage}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => trackClick('whatsapp_clicks')}
+          className="floating-action-item"
+          aria-label="Chat on WhatsApp"
+        >
+          <MessageCircle size={18} style={{ color: '#25D366' }} />
+          <span>{isRTL ? 'واتساب' : 'WhatsApp'}</span>
+        </a>
+      )}
+
       {/* Standalone Menu Route */}
       <Link
         to="/menu"
+        onClick={() => trackClick('menu_views')}
         className="floating-action-item"
         aria-label="Digital Menu"
       >
@@ -52,6 +78,7 @@ export const FloatingActions: React.FC = () => {
         href={siteSettings.google_maps_url}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => trackClick('directions')}
         className="floating-action-item"
         aria-label="Get directions in Google Maps"
       >

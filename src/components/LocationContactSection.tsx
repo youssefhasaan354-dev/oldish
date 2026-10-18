@@ -214,9 +214,9 @@ export const LocationContactSection: React.FC = () => {
                 }}
               >
                 <CheckCircle2 size={32} style={{ color: '#2C7326', marginInline: 'auto', marginBottom: '8px' }} />
-                <h4 style={{ color: '#1E5319', marginBottom: '6px' }}>
+                <h3 style={{ fontSize: '1.25rem', color: '#1E5319', marginBottom: '6px', fontWeight: 600 }}>
                   {isRTL ? 'تم استلام رسالتك' : 'Message Received'}
-                </h4>
+                </h3>
                 <p style={{ fontSize: '0.875rem', color: '#3A6336' }}>
                   {isRTL ? 'شكراً لتواصلك معنا! تم تسجيل رسالتك بنجاح.' : 'Thank you for contacting Oldish! Your message has been recorded.'}
                 </p>

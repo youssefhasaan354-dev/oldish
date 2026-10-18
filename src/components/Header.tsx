@@ -3,6 +3,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
 import { Menu as MenuIcon, X, Globe, Phone, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { LiveCairoStatusBadge } from './LiveCairoStatusBadge';
 
 interface HeaderProps {
   activeSection: string;
@@ -10,23 +11,11 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ activeSection }) => {
   const { language, toggleLanguage, t, isRTL } = useLanguage();
-  const { siteSettings, sections } = useData();
+  const { siteSettings, sections, imageSlots, trackClick } = useData();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [hasRealLogo, setHasRealLogo] = useState(false);
 
-  // TODO: Replace with real logo from public/images/logo.png or logo.svg when supplied by the owner
-  useEffect(() => {
-    const img = new Image();
-    img.src = '/images/logo.png';
-    img.onload = () => setHasRealLogo(true);
-    img.onerror = () => {
-      const svgImg = new Image();
-      svgImg.src = '/images/logo.svg';
-      svgImg.onload = () => setHasRealLogo(true);
-      svgImg.onerror = () => setHasRealLogo(false);
-    };
-  }, []);
+  const headerLogoUrl = siteSettings.logo_url || imageSlots['branding.logo']?.media_url;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -67,13 +56,12 @@ export const Header: React.FC<HeaderProps> = ({ activeSection }) => {
         <div className="container header-inner">
           {/* Logo / Clean Text Wordmark */}
           <a href="#hero" className="brand-link" onClick={() => handleNavClick('hero')}>
-            {hasRealLogo ? (
+            {headerLogoUrl ? (
               <img 
-                src="/images/logo.png" 
+                src={headerLogoUrl} 
                 alt={isRTL ? siteSettings.brand_name_ar : siteSettings.brand_name_en}
                 className="brand-logo-img"
-                width="48"
-                height="48"
+                style={{ maxHeight: '44px', width: 'auto', objectFit: 'contain' }}
               />
             ) : (
               // Real wordmark: "Oldish" / "أولديش" — No "Cairo" or fabricated words in wordmark
@@ -112,6 +100,11 @@ export const Header: React.FC<HeaderProps> = ({ activeSection }) => {
 
           {/* Header Actions */}
           <div className="header-actions">
+            {/* Live Cairo Open/Closed Badge (Africa/Cairo) */}
+            <div className="desktop-only">
+              <LiveCairoStatusBadge variant="header" />
+            </div>
+
             {/* Language Switcher */}
             <button
               type="button"
@@ -127,6 +120,7 @@ export const Header: React.FC<HeaderProps> = ({ activeSection }) => {
             {/* Call action */}
             <a
               href={`tel:${siteSettings.phone.replace(/\s+/g, '')}`}
+              onClick={() => trackClick('calls')}
               className="btn btn-outline-gold btn-sm desktop-only"
               aria-label="Call Oldish"
             >

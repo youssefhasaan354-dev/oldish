@@ -296,6 +296,12 @@ html[dir="rtl"] .nav-link {
   opacity: 1;
 }
 
+.hero-slide-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .hero-overlay {
   position: absolute;
   inset: 0;
@@ -1289,4 +1295,70 @@ html[dir="rtl"] .floating-action-item {
 
 .floating-action-item:hover {
   color: var(--color-gold-light);
+}
+
+/* Prevent floating mobile bar from covering content / footer */
+@media (max-width: 991px) {
+  .site-wrapper, .standalone-menu-view {
+    padding-bottom: 74px;
+  }
+}
+
+/* ==========================================================================
+   PRINTABLE MENU STYLING (Part C #4)
+   ========================================================================== */
+@media print {
+  .no-print,
+  .site-header,
+  .site-announcement-banner,
+  .demo-banner,
+  .mobile-floating-bar,
+  .visual-edit-floating-toolbar,
+  .sticky-menu-nav,
+  .menu-disclaimer-banner,
+  footer.no-print,
+  header.no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  body, .standalone-menu-view {
+    background: #FFFFFF !important;
+    color: #111111 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 10.5pt !important;
+  }
+
+  .menu-print-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .menu-items-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 14px !important;
+  }
+
+  .menu-item-card {
+    border: 1px solid #CCC !important;
+    box-shadow: none !important;
+    padding: 10px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .item-photo-wrap {
+    width: 60px !important;
+    height: 60px !important;
+  }
+
+  @page {
+    margin: 1.2cm;
+    size: A4 portrait;
+  }
 }

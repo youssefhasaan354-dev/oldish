@@ -28,3 +28,7 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Test and Audit Artifacts
+lighthouse*.json
+screenshot*.png

@@ -17,7 +17,7 @@
     <meta property="og:title" content="Oldish — Flavors you'll never forget" />
     <meta property="og:description" content="Restaurant · Café · Garden - Downtown Cairo. 20 Mohamed Mahmoud St, behind Greek Campus (opposite AUC library)." />
     <meta property="og:url" content="%VITE_SITE_URL%" />
-    <meta property="og:image" content="%VITE_SITE_URL%/images/oldish_courtyard_hero.jpg" />
+    <meta property="og:image" content="%VITE_SITE_URL%/images/og-image.jpg" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:locale:alternate" content="ar_EG" />
 
@@ -25,12 +25,38 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Oldish — Flavors you'll never forget" />
     <meta name="twitter:description" content="Restaurant · Café · Garden - Downtown Cairo. Authentic courtyard dining, Egyptian tagines and comforts." />
-    <meta name="twitter:image" content="%VITE_SITE_URL%/images/oldish_courtyard_hero.jpg" />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/images/og-image.jpg" />
 
-    <!-- Google Fonts -->
+    <!-- Route-Specific Instant Preloader -->
+    <script>
+      if (window.location.pathname.startsWith('/menu')) {
+        var l = document.createElement('link');
+        l.rel = 'preload';
+        l.as = 'image';
+        l.href = '/images/egyptian_breakfast_spread-640.webp';
+        l.type = 'image/webp';
+        l.fetchPriority = 'high';
+        document.head.appendChild(l);
+      }
+    </script>
+    <link
+      rel="preload"
+      as="image"
+      href="/images/oldish_courtyard_hero-800.webp"
+      imagesrcset="/images/oldish_courtyard_hero-640.webp 640w, /images/oldish_courtyard_hero-800.webp 800w, /images/oldish_courtyard_hero-1024.webp 1024w, /images/oldish_courtyard_hero.webp 1376w"
+      imagesizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 100vw"
+      type="image/webp"
+      fetchpriority="high"
+    />
+
+    <!-- Google Fonts Non-blocking -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700&family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap" />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700&family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700&family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+    </noscript>
 
     <!-- Schema.org Restaurant Structured Data (Verified Facts Only) -->
     <script type="application/ld+json">

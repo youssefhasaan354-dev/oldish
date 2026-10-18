@@ -26,20 +26,31 @@ export interface MediaItem {
 }
 
 export interface ImageSlot {
-  slot_key: string; // e.g. 'hero.slide.0', 'story.block.0', 'atmosphere.card.0', 'logo', 'og.image'
+  slot_key: string; // e.g. 'branding.logo', 'hero.slide.0', 'story.block.0'
   label_en: string;
   label_ar: string;
-  section: string;
+  section: string; // 'branding' | 'hero' | 'story' | 'atmosphere' | 'gallery' | 'menu' | 'social' | 'seo'
+  where_appears_en?: string;
+  where_appears_ar?: string;
+  recommended_size?: string;
+  recommended_aspect_ratio?: string;
+  default_url?: string;
   media_id?: string;
   media_url?: string;
+  thumbnail_url?: string;
   object_position_x: number; // 0-100 %
   object_position_y: number; // 0-100 %
   object_fit: 'cover' | 'contain' | 'fill';
   zoom: number; // 1 to 3
   overlay_opacity: number; // 0 to 1
   aspect_ratio?: string; // e.g. '16/9', '4/3', '1/1'
+  alt_en?: string;
+  alt_ar?: string;
+  caption_en?: string;
+  caption_ar?: string;
   sort_order: number;
   visible: boolean;
+  can_delete?: boolean;
 }
 
 export interface MenuItem {
@@ -139,6 +150,29 @@ export interface SiteSettings {
   bg_color: string; // #FAF8F5
   font_family_en: string;
   font_family_ar: string;
+  // Announcements
+  announcement_enabled?: boolean;
+  announcement_text_en?: string;
+  announcement_text_ar?: string;
+  announcement_link?: string;
+  announcement_start_date?: string;
+  announcement_end_date?: string;
+  // Branding Images
+  logo_url?: string;
+  logo_dark_url?: string;
+  favicon_url?: string;
+  social_image_url?: string;
+  qr_logo_url?: string;
+  // Social
+  instagram_strip_enabled?: boolean;
+  // Local Analytics
+  analytics_clicks?: {
+    calls: number;
+    directions: number;
+    menu_views: number;
+    whatsapp_clicks: number;
+    reservation_requests: number;
+  };
 }
 
 export interface SectionConfig {

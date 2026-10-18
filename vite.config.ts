@@ -16,6 +16,28 @@ export default defineConfig(({ mode }) => {
           return html.replace(/%VITE_SITE_URL%/g, siteUrl);
         }
       }
-    ]
+    ],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                return 'vendor-react';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              if (id.includes('@supabase')) {
+                return 'vendor-supabase';
+              }
+              if (id.includes('qrcode')) {
+                return 'vendor-qrcode';
+              }
+            }
+          }
+        }
+      }
+    }
   };
 });

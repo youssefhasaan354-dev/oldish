@@ -10,11 +10,19 @@ export const Hero: React.FC = () => {
   const [isPaused, setIsPaused] = useState(false);
 
   // Dynamic slides from image slots
-  const slide0 = getImageForSlot('hero.slide.0', '/images/oldish_courtyard_hero.jpg');
-  const slide1 = getImageForSlot('hero.slide.1', '/images/oldish_courtyard_evening.jpg');
-  const slide2 = getImageForSlot('hero.slide.2', '/images/egyptian_breakfast_spread.jpg');
+  const slide0 = getImageForSlot('hero.slide.0', '/images/oldish_courtyard_hero.webp');
+  const slide1 = getImageForSlot('hero.slide.1', '/images/oldish_courtyard_evening.webp');
+  const slide2 = getImageForSlot('hero.slide.2', '/images/egyptian_breakfast_spread.webp');
 
   const slides = [slide0, slide1, slide2];
+
+  const [loadSecondarySlides, setLoadSecondarySlides] = useState(false);
+
+  useEffect(() => {
+    // Delay loading extra hero slides until 5.5s (before rotation at 6s)
+    const timer = setTimeout(() => setLoadSecondarySlides(true), 5500);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (isPaused) return;
@@ -25,10 +33,12 @@ export const Hero: React.FC = () => {
   }, [isPaused, slides.length]);
 
   const handleNext = () => {
+    setLoadSecondarySlides(true);
     setCurrentSlide((prev) => (prev + 1) % slides.length);
   };
 
   const handlePrev = () => {
+    setLoadSecondarySlides(true);
     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
   };
 
@@ -49,16 +59,44 @@ export const Hero: React.FC = () => {
     >
       {/* Background Slideshow */}
       <div className="hero-slider-bg" aria-hidden="true">
-        {slides.map((slide, index) => (
-          <div
-            key={index}
-            className={`hero-slide ${index === currentSlide ? 'active' : ''}`}
-            style={{ 
-              backgroundImage: `url(${slide.url})`,
-              ...slide.style
-            }}
-          />
-        ))}
+        {slides.map((slide, index) => {
+          if (index > 0 && index !== currentSlide && !loadSecondarySlides) {
+            return null;
+          }
+          const baseName = slide.url?.startsWith('/images/') && slide.url.endsWith('.webp') && !slide.url.includes('-640') && !slide.url.includes('-800') && !slide.url.includes('-1024')
+            ? slide.url.replace('.webp', '')
+            : null;
+          const srcSet = baseName
+            ? `${baseName}-640.webp 640w, ${baseName}-800.webp 800w, ${baseName}-1024.webp 1024w, ${slide.url} 1376w`
+            : undefined;
+
+          return (
+            <div
+              key={index}
+              className={`hero-slide ${index === currentSlide ? 'active' : ''}`}
+            >
+              <img
+                src={slide.url}
+                srcSet={srcSet}
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 100vw"
+                width={1376}
+                height={768}
+                alt={slide.slot?.alt_en || 'Oldish Courtyard'}
+                className="hero-slide-img"
+                fetchPriority={index === 0 ? 'high' : 'low'}
+                loading={index === 0 ? 'eager' : 'lazy'}
+                decoding={index === 0 ? 'sync' : 'async'}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: (slide.slot?.object_fit as any) || 'cover',
+                  objectPosition: `${slide.slot?.object_position_x ?? 50}% ${slide.slot?.object_position_y ?? 50}%`,
+                  transform: slide.slot?.zoom && slide.slot.zoom > 1 ? `scale(${slide.slot.zoom})` : undefined
+                }}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {/* Atmospheric Vignette Overlay */}
@@ -203,7 +241,7 @@ export const Hero: React.FC = () => {
           <button 
             type="button"
             onClick={handlePrev}
-            style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px' }}
+            style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '10px', minWidth: '40px', minHeight: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             aria-label="Previous Slide"
           >
             <ChevronLeft size={20} />
@@ -213,17 +251,19 @@ export const Hero: React.FC = () => {
             <button
               key={idx}
               type="button"
+              role="tab"
               className={`slide-dot ${idx === currentSlide ? 'active' : ''}`}
               onClick={() => setCurrentSlide(idx)}
               aria-label={`Slide ${idx + 1}`}
               aria-selected={idx === currentSlide}
+              style={{ minWidth: '28px', minHeight: '28px', padding: '8px' }}
             />
           ))}
 
           <button 
             type="button"
             onClick={handleNext}
-            style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px' }}
+            style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '10px', minWidth: '40px', minHeight: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             aria-label="Next Slide"
           >
             <ChevronRight size={20} />

@@ -1,31 +1,47 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
-import type { MediaItem } from '../types';
-import { Camera, ZoomIn, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Camera, ZoomIn } from 'lucide-react';
+import { EditableImageSlot } from './EditableImageSlot';
+
+const GalleryLightboxModal = lazy(() => import('./GalleryLightboxModal'));
 
 export const GallerySection: React.FC = () => {
   const { isRTL } = useLanguage();
-  const { mediaList, sections } = useData();
+  const { imageSlots, sections } = useData();
   const [activeTag, setActiveTag] = useState<string>('all');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  const filteredItems = mediaList.filter((item) => {
-    if (activeTag === 'all') return true;
-    return item.tags?.includes(activeTag);
-  });
+  // Gallery items derived from central imageSlots
+  const gallerySlots = useMemo(() => {
+    return Object.values(imageSlots)
+      .filter((s) => s.section === 'gallery')
+      .sort((a, b) => a.sort_order - b.sort_order);
+  }, [imageSlots]);
 
-  const activePhoto: MediaItem | null = lightboxIndex !== null ? filteredItems[lightboxIndex] : null;
+  const filteredSlots = useMemo(() => {
+    if (activeTag === 'all') return gallerySlots;
+    return gallerySlots.filter((slot) => {
+      const key = slot.slot_key.toLowerCase();
+      if (activeTag === 'courtyard') return key.includes('0') || key.includes('1') || key.includes('courtyard');
+      if (activeTag === 'interior') return key.includes('2') || key.includes('interior');
+      if (activeTag === 'food') return key.includes('3') || key.includes('4') || key.includes('tagine') || key.includes('breakfast');
+      if (activeTag === 'drinks') return key.includes('5') || key.includes('juice');
+      return true;
+    });
+  }, [gallerySlots, activeTag]);
+
+  const activeSlot = lightboxIndex !== null ? filteredSlots[lightboxIndex] : null;
 
   const handleNext = useCallback(() => {
     if (lightboxIndex === null) return;
-    setLightboxIndex((lightboxIndex + 1) % filteredItems.length);
-  }, [lightboxIndex, filteredItems.length]);
+    setLightboxIndex((lightboxIndex + 1) % filteredSlots.length);
+  }, [lightboxIndex, filteredSlots.length]);
 
   const handlePrev = useCallback(() => {
     if (lightboxIndex === null) return;
-    setLightboxIndex((lightboxIndex - 1 + filteredItems.length) % filteredItems.length);
-  }, [lightboxIndex, filteredItems.length]);
+    setLightboxIndex((lightboxIndex - 1 + filteredSlots.length) % filteredSlots.length);
+  }, [lightboxIndex, filteredSlots.length]);
 
   const handleClose = () => {
     setLightboxIndex(null);
@@ -100,9 +116,9 @@ export const GallerySection: React.FC = () => {
 
         {/* Gallery Grid */}
         <div className="gallery-grid">
-          {filteredItems.map((item, idx) => (
+          {filteredSlots.map((slot, idx) => (
             <div
-              key={item.id}
+              key={slot.slot_key}
               className="gallery-card"
               onClick={() => setLightboxIndex(idx)}
               onKeyDown={(e) => {
@@ -113,37 +129,23 @@ export const GallerySection: React.FC = () => {
               }}
               tabIndex={0}
               role="button"
-              aria-label={`View ${isRTL ? item.alt_ar : item.alt_en} in full screen`}
+              aria-label={`View ${isRTL ? slot.label_ar : slot.label_en} in full screen`}
+              style={{ position: 'relative' }}
             >
-              <img
-                src={item.public_url}
-                alt={isRTL ? item.alt_ar : item.alt_en}
-                loading="lazy"
+              <EditableImageSlot
+                slotKey={slot.slot_key}
+                fallbackUrl={slot.default_url || '/images/oldish_courtyard_hero.webp'}
+                style={{ width: '100%', height: '100%' }}
+                showOverlay={false}
               />
+
               <div className="gallery-card-zoom-icon" aria-hidden="true">
                 <ZoomIn size={16} />
               </div>
 
-              {item.is_ai && (
-                <span 
-                  className="badge" 
-                  style={{
-                    position: 'absolute',
-                    top: '10px',
-                    insetInlineStart: '10px',
-                    background: 'rgba(0,0,0,0.7)',
-                    color: '#E0DDD7',
-                    fontSize: '0.6875rem',
-                    zIndex: 2
-                  }}
-                >
-                  {isRTL ? 'صورة توضيحية' : 'Illustrative image'}
-                </span>
-              )}
-
               <div className="gallery-card-overlay">
                 <p className="gallery-card-title">
-                  {isRTL ? (item.caption_ar || item.alt_ar) : (item.caption_en || item.alt_en)}
+                  {isRTL ? (slot.caption_ar || slot.label_ar) : (slot.caption_en || slot.label_en)}
                 </p>
                 <span style={{ fontSize: '0.8125rem', color: '#D6D2CA' }}>
                   {isRTL ? 'انقر للتكبير' : 'Click to enlarge'}
@@ -154,64 +156,19 @@ export const GallerySection: React.FC = () => {
         </div>
       </div>
 
-      {/* Accessible Lightbox Modal */}
-      {activePhoto && lightboxIndex !== null && (
-        <div
-          className="lightbox-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label={isRTL ? activePhoto.alt_ar : activePhoto.alt_en}
-          onClick={handleClose}
-        >
-          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="lightbox-btn close"
-              onClick={handleClose}
-              aria-label="Close"
-            >
-              <X size={24} />
-            </button>
-
-            <button
-              type="button"
-              className="lightbox-btn prev"
-              onClick={isRTL ? handleNext : handlePrev}
-              aria-label="Previous"
-            >
-              <ChevronLeft size={24} />
-            </button>
-
-            <img
-              src={activePhoto.public_url}
-              alt={isRTL ? activePhoto.alt_ar : activePhoto.alt_en}
-              className="lightbox-image"
-            />
-
-            <button
-              type="button"
-              className="lightbox-btn next"
-              onClick={isRTL ? handlePrev : handleNext}
-              aria-label="Next"
-            >
-              <ChevronRight size={24} />
-            </button>
-
-            <div className="lightbox-caption-bar">
-              <h3 className="lightbox-title">
-                {isRTL ? (activePhoto.caption_ar || activePhoto.alt_ar) : (activePhoto.caption_en || activePhoto.alt_en)}
-              </h3>
-              {activePhoto.is_ai && (
-                <span className="badge" style={{ background: 'rgba(255,255,255,0.15)', color: '#FFD79A', fontSize: '0.75rem', marginInline: 'auto' }}>
-                  {isRTL ? 'صورة توضيحية — بانتظار استبدالها بصور المكان الحقيقية' : 'Illustrative image — Pending real venue photography'}
-                </span>
-              )}
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-gold-light)', marginTop: '8px', display: 'block' }}>
-                {lightboxIndex + 1} / {filteredItems.length}
-              </span>
-            </div>
-          </div>
-        </div>
+      {/* Accessible Lightbox Modal (Code-split) */}
+      {activeSlot && lightboxIndex !== null && (
+        <Suspense fallback={null}>
+          <GalleryLightboxModal
+            activeSlot={activeSlot}
+            lightboxIndex={lightboxIndex}
+            totalCount={filteredSlots.length}
+            isRTL={isRTL}
+            onClose={handleClose}
+            onPrev={handlePrev}
+            onNext={handleNext}
+          />
+        </Suspense>
       )}
     </section>
   );

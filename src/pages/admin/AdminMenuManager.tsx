@@ -283,7 +283,7 @@ export const AdminMenuManager: React.FC = () => {
           }
         }
         alert(`تم استيراد ${addedCount} صنف بنجاح.`);
-      } catch (_err) {
+      } catch {
         alert('حدث خطأ أثناء قراءة ملف CSV. يرجى التأكد من التنسيق.');
       }
     };

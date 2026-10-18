@@ -1,14 +1,27 @@
 import React, { useState, useMemo } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
-import { Search, ArrowLeft, ArrowRight, Globe, Phone, MapPin, ShoppingBag, Star, AlertCircle } from 'lucide-react';
+import { 
+  Search, 
+  ArrowLeft, 
+  ArrowRight, 
+  Globe, 
+  Phone, 
+  MapPin, 
+  ShoppingBag, 
+  Star, 
+  AlertCircle, 
+  Printer, 
+  MessageCircle
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useNoIndex } from '../lib/seo';
+import { EditableImageSlot } from '../components/EditableImageSlot';
 
 export const PublicMenuPage: React.FC = () => {
   useNoIndex();
   const { isRTL, language, toggleLanguage } = useLanguage();
-  const { menuCategories, menuItems, siteSettings } = useData();
+  const { menuCategories, menuItems, siteSettings, trackClick } = useData();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -30,10 +43,22 @@ export const PublicMenuPage: React.FC = () => {
     }).sort((a, b) => a.sort_order - b.sort_order);
   }, [menuItems, selectedCategory, searchQuery]);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const cleanWhatsapp = siteSettings.whatsapp.replace(/[^0-9]/g, '');
+  const hasWhatsapp = Boolean(siteSettings.whatsapp && siteSettings.whatsapp.trim());
+  const whatsappMessage = encodeURIComponent(
+    isRTL 
+      ? 'مرحباً، أود الاستفسار عن أصناف منيو مطعم وكافيه أولديش.' 
+      : 'Hello! I would like to inquire about Oldish menu items.'
+  );
+
   return (
-    <div className="standalone-menu-view">
-      {/* Compact Top Navigation Bar */}
-      <header className="standalone-menu-header">
+    <main className="standalone-menu-view">
+      {/* Top Header Bar (Screen only) */}
+      <header className="standalone-menu-header no-print">
         <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBlock: '12px' }}>
           <Link to="/" className="back-home-link" aria-label="Back to main site">
             {isRTL ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}
@@ -45,52 +70,130 @@ export const PublicMenuPage: React.FC = () => {
             <span className="brand-wordmark-ar" style={{ fontSize: '1.25rem' }}>أولديش</span>
           </div>
 
-          <button
-            type="button"
-            onClick={toggleLanguage}
-            className="lang-switch-btn"
-            style={{ padding: '6px 12px' }}
-          >
-            <Globe size={14} />
-            <span>{language === 'en' ? 'العربية' : 'EN'}</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="btn btn-outline-light btn-sm"
+              title={isRTL ? 'طباعة القائمة أو حفظها كـ PDF' : 'Print menu or save as PDF'}
+              style={{ padding: '6px 12px' }}
+            >
+              <Printer size={15} />
+              <span className="desktop-only">{isRTL ? 'طباعة المنيو' : 'Print'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleLanguage}
+              className="lang-switch-btn"
+              style={{ padding: '6px 12px' }}
+            >
+              <Globe size={14} />
+              <span>{language === 'en' ? 'العربية' : 'EN'}</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Menu Sub-header */}
-      <div className="container" style={{ paddingBlock: '20px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '1.75rem', fontFamily: isRTL ? 'var(--font-ar)' : 'var(--font-en-serif)', color: 'var(--color-charcoal)', marginBottom: '6px' }}>
-          {isRTL ? 'قائمة المأكولات والمشروبات الرقمية' : 'Digital Menu — Oldish'}
-        </h1>
-        <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', maxWidth: '580px', marginInline: 'auto' }}>
-          {isRTL 
-            ? 'طواجن الفخار المصرية، الفطور الشرقي والغربي، دجاج أولديش المشوي، والقهوة التركية على الرمل.' 
-            : 'Comforting Egyptian clay tagines, breakfast favorites, grilled specialties, and sand-brewed coffee.'}
-        </p>
+      {/* Hero Header Banner Slot (menu.page_header) */}
+      <div className="no-print" style={{ position: 'relative', width: '100%', height: '220px', overflow: 'hidden' }}>
+        <EditableImageSlot
+          slotKey="menu.page_header"
+          fallbackUrl="/images/egyptian_breakfast_spread.webp"
+          loading="eager"
+          fetchPriority="high"
+          style={{ width: '100%', height: '100%' }}
+        />
+        <div 
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 100%)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+            padding: '24px',
+            color: '#FFFFFF'
+          }}
+        >
+          <div className="container" style={{ textAlign: 'center' }}>
+            <span className="badge badge-gold" style={{ fontSize: '0.75rem', marginBottom: '6px' }}>
+              {isRTL ? siteSettings.subline_ar : siteSettings.subline_en}
+            </span>
+            <h1 style={{ fontSize: '1.75rem', fontFamily: isRTL ? 'var(--font-ar)' : 'var(--font-en-serif)', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
+              {isRTL ? 'قائمة الطعام والمشروبات الكاملة' : 'Full Food & Beverage Menu'}
+            </h1>
+          </div>
+        </div>
+      </div>
 
-        {/* Quick Action Buttons */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '14px' }}>
-          <a href={`tel:${siteSettings.phone.replace(/\s+/g, '')}`} className="btn btn-primary btn-sm">
+      {/* Print-Only Header Branding */}
+      <div className="print-only" style={{ display: 'none', textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid #886E42', paddingBottom: '12px' }}>
+        <h1 style={{ fontSize: '24pt', margin: 0, fontFamily: 'serif', color: '#111' }}>Oldish — أولديش</h1>
+        <p style={{ margin: '4px 0', fontSize: '10pt', color: '#555' }}>
+          20 شارع محمد محمود، خلف الجريك كامبس، وسط البلد، القاهرة • هاتف: {siteSettings.phone}
+        </p>
+        <p style={{ margin: 0, fontSize: '9pt', color: '#777' }}>
+          مواعيد العمل: يومياً من 8:00 صباحاً حتى 12:00 منتصف الليل
+        </p>
+      </div>
+
+      {/* Quick Action Buttons (Screen only) */}
+      <div className="container no-print" style={{ paddingBlock: '16px', textAlign: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <a 
+            href={`tel:${siteSettings.phone.replace(/\s+/g, '')}`} 
+            onClick={() => trackClick('calls')}
+            className="btn btn-primary btn-sm"
+          >
             <Phone size={14} />
             <span>{isRTL ? 'اتصال: ' + siteSettings.phone : 'Call: ' + siteSettings.phone}</span>
           </a>
 
+          {hasWhatsapp && (
+            <a 
+              href={`https://wa.me/${cleanWhatsapp}?text=${whatsappMessage}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              onClick={() => trackClick('whatsapp_clicks')}
+              className="btn btn-outline-gold btn-sm"
+              style={{ borderColor: '#25D366', color: '#25D366' }}
+            >
+              <MessageCircle size={14} />
+              <span>{isRTL ? 'محادثة واتساب' : 'WhatsApp'}</span>
+            </a>
+          )}
+
           {siteSettings.elmenus_url && (
-            <a href={siteSettings.elmenus_url} target="_blank" rel="noopener noreferrer" className="btn btn-outline-gold btn-sm">
+            <a 
+              href={siteSettings.elmenus_url} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="btn btn-outline-gold btn-sm"
+            >
               <ShoppingBag size={14} />
               <span>{isRTL ? 'طلب دليفري (elmenus)' : 'Order on elmenus'}</span>
             </a>
           )}
 
-          <a href={siteSettings.google_maps_url} target="_blank" rel="noopener noreferrer" className="btn btn-outline-light btn-sm" style={{ color: 'var(--color-charcoal)', borderColor: '#CCC' }}>
-            <MapPin size={14} />
-            <span>{isRTL ? 'الموقع' : 'Location'}</span>
-          </a>
+          {siteSettings.google_maps_url && (
+            <a 
+              href={siteSettings.google_maps_url} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              onClick={() => trackClick('directions')}
+              className="btn btn-outline-light btn-sm" 
+              style={{ color: 'var(--color-charcoal)', borderColor: '#CCC' }}
+            >
+              <MapPin size={14} />
+              <span>{isRTL ? 'الموقع والتقييمات' : 'Location & Reviews'}</span>
+            </a>
+          )}
         </div>
       </div>
 
-      {/* Sticky Search & Category Navigation */}
-      <div className="sticky-menu-nav">
+      {/* Sticky Search & Category Navigation (Screen only) */}
+      <div className="sticky-menu-nav no-print">
         <div className="container">
           <div style={{ paddingBottom: '10px' }}>
             <div className="menu-search-box" style={{ maxWidth: '100%' }}>
@@ -99,16 +202,18 @@ export const PublicMenuPage: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={isRTL ? 'ابحث في القائمة...' : 'Search menu items...'}
+                placeholder={isRTL ? 'ابحث في أصناف القائمة...' : 'Search menu items...'}
                 className="menu-search-input"
                 style={{ paddingBlock: '8px', fontSize: '0.875rem' }}
               />
             </div>
           </div>
 
-          <div className="category-scroll-strip" role="tablist">
+          <div className="category-scroll-strip" role="tablist" aria-label={isRTL ? 'أقسام قائمة الطعام' : 'Menu categories'}>
             <button
               type="button"
+              role="tab"
+              aria-selected={selectedCategory === 'all'}
               className={`cat-pill ${selectedCategory === 'all' ? 'active' : ''}`}
               onClick={() => setSelectedCategory('all')}
               style={{ fontSize: '0.8125rem', padding: '6px 14px' }}
@@ -119,6 +224,8 @@ export const PublicMenuPage: React.FC = () => {
               <button
                 key={cat.id}
                 type="button"
+                role="tab"
+                aria-selected={selectedCategory === cat.id}
                 className={`cat-pill ${selectedCategory === cat.id ? 'active' : ''}`}
                 onClick={() => setSelectedCategory(cat.id)}
                 style={{ fontSize: '0.8125rem', padding: '6px 14px' }}
@@ -131,32 +238,37 @@ export const PublicMenuPage: React.FC = () => {
       </div>
 
       {/* Items List */}
-      <div className="container" style={{ paddingBlock: '24px', maxWidth: '820px' }}>
+      <h2 className="sr-only">{isRTL ? 'أصناف قائمة الطعام' : 'Menu Items List'}</h2>
+      <div className="container menu-print-container" style={{ paddingBlock: '24px', maxWidth: '820px' }}>
         {filteredItems.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 10px', color: '#888' }}>
             {isRTL ? 'لا توجد أطباق مطابقة للبحث.' : 'No dishes found matching your criteria.'}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="menu-items-grid" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {filteredItems.map((item) => (
               <div 
                 key={item.id}
+                className="menu-item-card"
                 style={{
                   background: '#FFFFFF',
                   borderRadius: '6px',
                   padding: '16px',
-                  border: '1px solid rgba(0,0,0,0.08)',
+                  border: item.is_signature ? '1.5px solid var(--color-gold)' : '1px solid rgba(0,0,0,0.08)',
                   display: 'flex',
                   gap: '16px',
                   alignItems: 'flex-start',
-                  boxShadow: 'var(--shadow-subtle)'
+                  boxShadow: item.is_signature ? '0 4px 12px rgba(136, 110, 66, 0.12)' : 'var(--shadow-subtle)',
+                  pageBreakInside: 'avoid'
                 }}
               >
+                {/* Optional Photo per item */}
                 {item.image_url && (
-                  <div style={{ width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
+                  <div className="item-photo-wrap" style={{ width: '84px', height: '84px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
                     <img 
                       src={item.image_url} 
                       alt={isRTL ? item.name_ar : item.name_en} 
+                      loading="lazy"
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                     />
                   </div>
@@ -165,9 +277,18 @@ export const PublicMenuPage: React.FC = () => {
                 <div style={{ flexGrow: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                     <div>
-                      <h3 style={{ fontSize: '1.0625rem', fontWeight: 600, color: 'var(--color-charcoal)', margin: 0 }}>
-                        {isRTL ? item.name_ar : item.name_en}
-                      </h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <h3 style={{ fontSize: '1.0625rem', fontWeight: 600, color: 'var(--color-charcoal)', margin: 0 }}>
+                          {isRTL ? item.name_ar : item.name_en}
+                        </h3>
+                        {item.is_signature && (
+                          <span className="badge badge-gold" style={{ fontSize: '0.625rem', padding: '2px 6px' }}>
+                            <Star size={9} fill="currentColor" />
+                            <span>{isRTL ? 'مميز' : 'Signature'}</span>
+                          </span>
+                        )}
+                      </div>
+
                       {item.is_sample && (
                         <span style={{ fontSize: '0.6875rem', color: '#9E4738', fontWeight: 600 }}>
                           {isRTL ? '(صنف تجريبي)' : '(Sample item)'}
@@ -189,15 +310,6 @@ export const PublicMenuPage: React.FC = () => {
                   <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginTop: '6px', lineHeight: '1.5' }}>
                     {isRTL ? item.description_ar : item.description_en}
                   </p>
-
-                  {item.is_signature && (
-                    <div style={{ marginTop: '8px' }}>
-                      <span className="badge badge-gold" style={{ fontSize: '0.6875rem', padding: '2px 8px' }}>
-                        <Star size={10} fill="currentColor" />
-                        <span>{isRTL ? 'أولديش مميز' : 'Oldish Signature'}</span>
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
@@ -205,7 +317,7 @@ export const PublicMenuPage: React.FC = () => {
         )}
 
         {/* Pricing notice */}
-        <div className="menu-disclaimer-banner" style={{ marginTop: '24px' }}>
+        <div className="menu-disclaimer-banner no-print" style={{ marginTop: '24px' }}>
           <AlertCircle size={18} style={{ flexShrink: 0 }} />
           <div style={{ fontSize: '0.8125rem' }}>
             {isRTL 
@@ -216,10 +328,10 @@ export const PublicMenuPage: React.FC = () => {
       </div>
 
       {/* Standalone Footer */}
-      <footer style={{ background: '#1C1C1C', color: '#AAA', paddingBlock: '24px', textAlign: 'center', fontSize: '0.8125rem', marginTop: '40px' }}>
+      <footer className="no-print" style={{ background: '#1C1C1C', color: '#AAA', paddingBlock: '24px', textAlign: 'center', fontSize: '0.8125rem', marginTop: '40px' }}>
         <p>Oldish (Restaurant &amp; Café) — 20 Mohamed Mahmoud St, Downtown Cairo</p>
         <p style={{ marginTop: '4px' }}>Tel: {siteSettings.phone} • Every day 8:00 AM – 12:00 AM</p>
       </footer>
-    </div>
+    </main>
   );
 };

@@ -1,0 +1,17 @@
+{
+  "name": "Oldish Restaurant & Café — أولديش",
+  "short_name": "Oldish",
+  "description": "Restaurant · Café · Garden in Downtown Cairo. Flavors you'll never forget.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF8F5",
+  "theme_color": "#222222",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

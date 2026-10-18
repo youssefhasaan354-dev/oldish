@@ -8,7 +8,9 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 export const Footer: React.FC = () => {
   const { isRTL } = useLanguage();
-  const { siteSettings, sections } = useData();
+  const { siteSettings, sections, imageSlots } = useData();
+
+  const darkLogoUrl = siteSettings.logo_dark_url || imageSlots['branding.logo_dark']?.media_url;
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -23,10 +25,18 @@ export const Footer: React.FC = () => {
           {/* Brand Col */}
           <div className="footer-brand-col">
             <div className="footer-logo-row">
-              <div className="brand-wordmark-box">
-                <span className="brand-wordmark-en">Oldish</span>
-                <span className="brand-wordmark-ar">أولديش</span>
-              </div>
+              {darkLogoUrl ? (
+                <img 
+                  src={darkLogoUrl} 
+                  alt={isRTL ? siteSettings.brand_name_ar : siteSettings.brand_name_en}
+                  style={{ maxHeight: '44px', width: 'auto', objectFit: 'contain' }}
+                />
+              ) : (
+                <div className="brand-wordmark-box">
+                  <span className="brand-wordmark-en">Oldish</span>
+                  <span className="brand-wordmark-ar">أولديش</span>
+                </div>
+              )}
               <div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--color-gold)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   {isRTL ? siteSettings.subline_ar : siteSettings.subline_en}
@@ -74,7 +84,7 @@ export const Footer: React.FC = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="footer-title">{isRTL ? 'روابط التنقل' : 'Navigation'}</h4>
+            <div className="footer-title">{isRTL ? 'روابط التنقل' : 'Navigation'}</div>
             <ul className="footer-links-list">
               {visibleSections.map((sec) => (
                 <li key={sec.key}>
@@ -99,7 +109,7 @@ export const Footer: React.FC = () => {
 
           {/* Verified Contact Details */}
           <div>
-            <h4 className="footer-title">{isRTL ? 'التواصل المباشر' : 'Verified Contact'}</h4>
+            <div className="footer-title">{isRTL ? 'التواصل المباشر' : 'Verified Contact'}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9375rem' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                 <MapPin size={18} style={{ color: 'var(--color-gold)', flexShrink: 0, marginTop: '2px' }} />

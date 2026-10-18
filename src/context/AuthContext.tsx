@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { AdminUser, UserRole } from '../types';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface AuthContextType {
   user: AdminUser | null;
@@ -25,14 +25,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkSession = async () => {
       try {
         if (isSupabaseConfigured()) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            // Fetch role from admin_users
-            const { data: adminData } = await supabase
-              .from('admin_users')
-              .select('role')
-              .eq('id', session.user.id)
-              .single();
+          const client = await getSupabase();
+          if (client) {
+            const { data: { session } } = await client.auth.getSession();
+            if (session?.user) {
+              // Fetch role from admin_users
+              const { data: adminData } = await client
+                .from('admin_users')
+                .select('role')
+                .eq('id', session.user.id)
+                .single();
 
             setUser({
               id: session.user.id,
@@ -45,6 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
           }
         }
+      }
 
         // Check local demo session
         const localSession = localStorage.getItem(STORAGE_KEY_AUTH);
@@ -71,26 +74,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 1. If Supabase configured, attempt live auth
     if (isSupabaseConfigured()) {
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          return { success: false, error: error.message };
-        }
-        if (data.user) {
-          const { data: adminData } = await supabase
-            .from('admin_users')
-            .select('role')
-            .eq('id', data.user.id)
-            .single();
+        const client = await getSupabase();
+        if (client) {
+          const { data, error } = await client.auth.signInWithPassword({ email, password });
+          if (error) {
+            return { success: false, error: error.message };
+          }
+          if (data.user) {
+            const { data: adminData } = await client
+              .from('admin_users')
+              .select('role')
+              .eq('id', data.user.id)
+              .single();
 
-          const adminUser: AdminUser = {
-            id: data.user.id,
-            email: data.user.email || '',
-            role: (adminData?.role as UserRole) || 'owner',
-            created_at: data.user.created_at,
-            last_sign_in_at: data.user.last_sign_in_at,
-          };
-          setUser(adminUser);
-          return { success: true };
+            const adminUser: AdminUser = {
+              id: data.user.id,
+              email: data.user.email || '',
+              role: (adminData?.role as UserRole) || 'owner',
+              created_at: data.user.created_at,
+              last_sign_in_at: data.user.last_sign_in_at,
+            };
+            setUser(adminUser);
+            return { success: true };
+          }
         }
       } catch (e: any) {
         return { success: false, error: e.message || 'Login failed' };
@@ -131,7 +137,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     if (isSupabaseConfigured()) {
-      try { await supabase.auth.signOut(); } catch (e) {}
+      try { 
+        const client = await getSupabase();
+        if (client) await client.auth.signOut(); 
+      } catch {}
     }
     localStorage.removeItem(STORAGE_KEY_AUTH);
     setUser(null);

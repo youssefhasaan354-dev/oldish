@@ -2,6 +2,7 @@ import React from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
 import { Sparkles } from 'lucide-react';
+import { EditableImageSlot } from './EditableImageSlot';
 
 export const StorySection: React.FC = () => {
   const { isRTL } = useLanguage();
@@ -10,9 +11,9 @@ export const StorySection: React.FC = () => {
   const storySection = sections.find(s => s.key === 'story');
   const content = storySection?.content || {};
 
-  const block0Img = getImageForSlot('story.block.0', '/images/oldish_vintage_interior.jpg');
-  const block1Img = getImageForSlot('story.block.1', '/images/oldish_courtyard_hero.jpg');
-  const block2Img = getImageForSlot('story.block.2', '/images/oldish_egyptian_tagine.jpg');
+  const block0Img = getImageForSlot('story.block.0', '/images/oldish_vintage_interior.webp');
+  const block1Img = getImageForSlot('story.block.1', '/images/oldish_courtyard_hero.webp');
+  const block2Img = getImageForSlot('story.block.2', '/images/oldish_egyptian_tagine.webp');
 
   const blocks = [
     {
@@ -80,13 +81,11 @@ export const StorySection: React.FC = () => {
                 {/* Media with illustrative badge */}
                 <div className="editorial-media">
                   <div className="editorial-media-frame">
-                    <img
-                      src={block.media.url}
-                      alt={isRTL ? block.media.altAr : block.media.altEn}
-                      loading="lazy"
+                    <EditableImageSlot
+                      slotKey={`story.block.${index}`}
+                      fallbackUrl={block.media.url}
                       width="600"
                       height="400"
-                      style={block.media.style}
                     />
                     {block.media.isAi && (
                       <span 

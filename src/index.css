@@ -30,8 +30,8 @@
   --color-bg-card-alt: #F8F5EE;
 
   --color-text-primary: #222222;
-  --color-text-secondary: #5A5752;
-  --color-text-muted: #848079;
+  --color-text-secondary: #4A4641;
+  --color-text-muted: #595550;
   --color-text-inverse: #FFFFFF;
   --color-text-inverse-muted: #D1CABE;
 
@@ -507,4 +507,16 @@ html[dir="rtl"] .editorial-content h3 {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Off-screen section rendering optimization */
+#atmosphere,
+#story,
+#gallery,
+#menu,
+#location,
+#reservation,
+#instagram-strip {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 600px;
 }

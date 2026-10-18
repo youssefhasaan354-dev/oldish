@@ -9,7 +9,7 @@ export const AtmosphereSection: React.FC = () => {
 
   const atmosphereSec = sections.find(s => s.key === 'atmosphere');
   const content = atmosphereSec?.content || {};
-  const bannerImg = getImageForSlot('atmosphere.quote_banner', '/images/oldish_courtyard_evening.jpg');
+  const bannerImg = getImageForSlot('atmosphere.quote_banner', '/images/oldish_courtyard_evening.webp');
 
   const features = [
     {
@@ -74,7 +74,7 @@ export const AtmosphereSection: React.FC = () => {
               <div className="atmosphere-icon-wrap" aria-hidden="true">
                 {feat.icon}
               </div>
-              <h4>{isRTL ? feat.titleAr : feat.titleEn}</h4>
+              <h3 style={{ fontSize: '1.125rem', margin: '0 0 8px 0', fontWeight: 600 }}>{isRTL ? feat.titleAr : feat.titleEn}</h3>
               <p>{isRTL ? feat.descAr : feat.descEn}</p>
             </div>
           ))}

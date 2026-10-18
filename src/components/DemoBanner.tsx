@@ -44,6 +44,7 @@ export const DemoBanner: React.FC = () => {
           <button
             type="button"
             className="demo-dismiss-btn"
+            style={{ minWidth: '36px', minHeight: '36px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
             onClick={() => setDismissed(true)}
             aria-label={language === 'ar' ? 'إغلاق الإشعار' : 'Dismiss notice'}
           >
