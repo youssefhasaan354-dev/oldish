@@ -1,0 +1,235 @@
+import React, { useState, useEffect } from 'react';
+import { useLanguage } from '../context/LanguageContext';
+import { useData } from '../context/DataContext';
+import { Utensils, Calendar, MapPin, ChevronLeft, ChevronRight, Clock, ShoppingBag } from 'lucide-react';
+
+export const Hero: React.FC = () => {
+  const { isRTL } = useLanguage();
+  const { siteSettings, getImageForSlot } = useData();
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  // Dynamic slides from image slots
+  const slide0 = getImageForSlot('hero.slide.0', '/images/oldish_courtyard_hero.jpg');
+  const slide1 = getImageForSlot('hero.slide.1', '/images/oldish_courtyard_evening.jpg');
+  const slide2 = getImageForSlot('hero.slide.2', '/images/egyptian_breakfast_spread.jpg');
+
+  const slides = [slide0, slide1, slide2];
+
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [isPaused, slides.length]);
+
+  const handleNext = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+  };
+
+  const handlePrev = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  };
+
+  const scrollTo = (selector: string) => {
+    const el = document.querySelector(selector);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const activeSlideData = slides[currentSlide];
+
+  return (
+    <section 
+      id="hero" 
+      className="hero-section"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      aria-label="Welcome Hero Showcase"
+    >
+      {/* Background Slideshow */}
+      <div className="hero-slider-bg" aria-hidden="true">
+        {slides.map((slide, index) => (
+          <div
+            key={index}
+            className={`hero-slide ${index === currentSlide ? 'active' : ''}`}
+            style={{ 
+              backgroundImage: `url(${slide.url})`,
+              ...slide.style
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Atmospheric Vignette Overlay */}
+      <div 
+        className="hero-overlay" 
+        style={{
+          opacity: activeSlideData.slot?.overlay_opacity ? activeSlideData.slot.overlay_opacity : undefined
+        }}
+        aria-hidden="true" 
+      />
+
+      {/* Main Editorial Content */}
+      <div className="hero-content">
+        {/* Eyebrow Badge */}
+        <div className="hero-badge-wrap">
+          <span className="badge badge-gold">
+            <MapPin size={13} />
+            <span>
+              {isRTL 
+                ? 'شارع محمد محمود • خلف الجريك كامبس (وسط البلد)' 
+                : '20 Mohamed Mahmoud St • Behind Greek Campus'}
+            </span>
+          </span>
+        </div>
+
+        <p className="section-eyebrow" style={{ color: 'var(--color-gold-light)' }}>
+          {isRTL ? siteSettings.subline_ar : siteSettings.subline_en}
+        </p>
+
+        {/* Real Tagline from Facebook page */}
+        <h1 className="hero-headline">
+          {isRTL ? siteSettings.tagline_ar : siteSettings.tagline_en}
+        </h1>
+
+        <p className="hero-subtitle">
+          {isRTL 
+            ? 'بيت قاهري عتيق بطراز منتصف القرن الماضي، فناء خارجي هادئ محاط بالطوب الأحمر والشرفات الخضراء، وأشهى المأكولات المصرية التراثية والمشروبات الطازجة.' 
+            : 'A nostalgic mid-century Cairo house and leafy brick-lined courtyard sanctuary, serving comforting Egyptian tagines, all-day breakfast, and artisan drinks in Downtown.'}
+        </p>
+
+        {/* Real Amenities & Facebook Category Tag */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
+          <span className="badge badge-gold">
+            {isRTL ? 'مطعم · مقهى · حديقة' : 'Restaurant · Café · Garden'}
+          </span>
+          <span className="badge badge-gold">
+            {isRTL ? 'أكثر من ١٦٥ ألف متابع على فيسبوك' : '~165K Facebook Community'}
+          </span>
+          <span className="badge badge-gold">
+            {isRTL ? 'جلسات داخلية وخارجية • واي فاي' : 'Indoor & Outdoor • Wi-Fi'}
+          </span>
+        </div>
+
+        {/* Calls to Action */}
+        <div className="hero-ctas">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => scrollTo('#menu')}
+          >
+            <Utensils size={16} />
+            <span>{isRTL ? 'استكشف قائمة الطعام' : 'Explore the Menu'}</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-outline-light"
+            onClick={() => scrollTo('#reservations')}
+          >
+            <Calendar size={16} />
+            <span>{isRTL ? 'الاستفسار عن الطاولات' : 'Ask About a Table'}</span>
+          </button>
+
+          <a
+            href={siteSettings.google_maps_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-outline-gold"
+          >
+            <MapPin size={16} />
+            <span>{isRTL ? 'الاتجاهات والخريطة' : 'Get Directions'}</span>
+          </a>
+
+          {siteSettings.elmenus_url && (
+            <a
+              href={siteSettings.elmenus_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline-light"
+              style={{ borderColor: 'rgba(255, 255, 255, 0.3)' }}
+            >
+              <ShoppingBag size={16} />
+              <span>{isRTL ? 'طلب دليفري (elmenus)' : 'Order Delivery'}</span>
+            </a>
+          )}
+        </div>
+
+        {/* Hours & Operating Info */}
+        <div 
+          style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            fontSize: '0.8125rem', 
+            color: '#D4CFC7',
+            background: 'rgba(0, 0, 0, 0.55)',
+            padding: '6px 16px',
+            borderRadius: '20px',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            marginBottom: '18px'
+          }}
+        >
+          <Clock size={14} style={{ color: 'var(--color-gold)' }} />
+          <span>
+            {isRTL ? 'يومياً: 8:00 صباحاً – 12:00 منتصف الليل' : 'Every day: 8:00 AM – 12:00 AM (Midnight)'}
+          </span>
+          <span style={{ opacity: 0.5 }}>|</span>
+          <span>
+            {isRTL ? 'متوسط الفرد: 200–400 ج.م' : 'Approx. EGP 200–400 / person'}
+          </span>
+        </div>
+
+        {/* Illustrative AI Image Notice for Current Hero Slide */}
+        {activeSlideData.isAi && (
+          <div style={{ marginBottom: '14px' }}>
+            <span 
+              className="badge" 
+              style={{ 
+                background: 'rgba(0, 0, 0, 0.6)', 
+                color: '#D0CBC2', 
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                fontSize: '0.7rem' 
+              }}
+            >
+              {isRTL ? 'صورة توضيحية' : 'Illustrative image'}
+            </span>
+          </div>
+        )}
+
+        {/* Slideshow Controls */}
+        <div className="hero-slide-indicators" role="tablist" aria-label="Slideshow controls">
+          <button 
+            type="button"
+            onClick={handlePrev}
+            style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px' }}
+            aria-label="Previous Slide"
+          >
+            <ChevronLeft size={20} />
+          </button>
+
+          {slides.map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              className={`slide-dot ${idx === currentSlide ? 'active' : ''}`}
+              onClick={() => setCurrentSlide(idx)}
+              aria-label={`Slide ${idx + 1}`}
+              aria-selected={idx === currentSlide}
+            />
+          ))}
+
+          <button 
+            type="button"
+            onClick={handleNext}
+            style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px' }}
+            aria-label="Next Slide"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+};

@@ -1,0 +1,347 @@
+import React, { useState } from 'react';
+import { useLanguage } from '../context/LanguageContext';
+import { useData } from '../context/DataContext';
+import { Phone, Calendar, Clock, Users, User, Mail, CheckCircle, AlertTriangle, Send } from 'lucide-react';
+
+export const ReservationSection: React.FC = () => {
+  const { isRTL } = useLanguage();
+  const { siteSettings, submitInquiry, sections } = useData();
+
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    date: '',
+    time: '19:00',
+    guests: '2',
+    message: '',
+    honeypot: '' // bot honeypot field
+  });
+
+  const [errors, setErrors] = useState<{ name?: string; phone?: string }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: { name?: string; phone?: string } = {};
+    if (!form.name.trim()) {
+      newErrors.name = isRTL ? 'يرجى كتابة الاسم' : 'Please provide your name';
+    }
+    if (!form.phone.trim() || form.phone.trim().length < 8) {
+      newErrors.phone = isRTL ? 'يرجى كتابة رقم هاتف صحيح' : 'Please provide a valid phone number';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setErrors({});
+    setIsSubmitting(true);
+
+    await submitInquiry({
+      type: 'reservation_request',
+      name: form.name,
+      phone: form.phone,
+      email: form.email,
+      date: form.date,
+      time: form.time,
+      guests: form.guests,
+      message: form.message,
+      branch: 'Downtown Cairo',
+      honeypot: form.honeypot
+    });
+
+    setIsSubmitting(false);
+    setIsSubmitted(true);
+  };
+
+  const resSec = sections.find(s => s.key === 'reservations');
+  if (resSec && !resSec.visible) {
+    return null;
+  }
+
+  return (
+    <section id="reservations" className="section" aria-labelledby="reservations-heading">
+      <div className="container">
+        {/* Section Header */}
+        <div className="section-header">
+          <div className="section-eyebrow">
+            <Calendar size={14} />
+            <span>{isRTL ? 'طلب حجز (تجريبي)' : 'Reservation request (demo)'}</span>
+          </div>
+          <h2 id="reservations-heading" className="section-title">
+            {isRTL ? 'طلب حجز (تجريبي)' : 'Reservation Request (Demo)'}
+          </h2>
+          <div className="gold-divider">
+            <span className="gold-divider-diamond" />
+          </div>
+          <p className="section-lead">
+            {isRTL 
+              ? 'المطعم لا يقبل الحجوزات المسبقة ويعمل بنظام أسبقية الحضور (Walk-in). للتحقق من توفر الطاولات مباشرة، نوصي بالاتصال الهاتفي.' 
+              : 'The venue does not take advance reservations and operates on a walk-in basis. For table availability, we recommend calling directly.'}
+          </p>
+        </div>
+
+        {/* Primary Recommended Direct Action: CALL TO ASK ABOUT A TABLE */}
+        <div 
+          style={{
+            maxWidth: '680px',
+            marginInline: 'auto',
+            textAlign: 'center',
+            marginBottom: 'var(--space-8)'
+          }}
+        >
+          <a
+            href={`tel:${siteSettings.phone.replace(/\s+/g, '')}`}
+            className="btn btn-primary"
+            style={{ 
+              padding: '18px 28px', 
+              fontSize: '1.0625rem', 
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              boxShadow: '0 4px 14px rgba(136, 110, 66, 0.35)',
+              width: '100%',
+              maxWidth: '440px'
+            }}
+          >
+            <Phone size={20} />
+            <strong>
+              {isRTL 
+                ? `الاتصال للاستفسار عن طاولة: ${siteSettings.phone}` 
+                : `Call to ask about a table: ${siteSettings.phone}`}
+            </strong>
+          </a>
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '14px', flexWrap: 'wrap' }}>
+            <a
+              href={siteSettings.facebook_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline-gold btn-sm"
+            >
+              <span>{isRTL ? 'صفحة فيسبوك' : 'Facebook Page'}</span>
+            </a>
+            <a
+              href={siteSettings.instagram_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline-gold btn-sm"
+            >
+              <span>{isRTL ? 'صفحة إنستغرام' : 'Instagram Page'}</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Interactive Demo Form Card */}
+        <div className="reservation-box">
+          {/* Visible Demo Note Banner */}
+          <div 
+            style={{
+              background: '#FFF8E6',
+              border: '1px solid #EEDFBA',
+              padding: '14px 18px',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              fontSize: '0.875rem',
+              color: '#8A6D2D',
+              marginBottom: '24px',
+              lineHeight: 1.5
+            }}
+          >
+            <AlertTriangle size={20} style={{ flexShrink: 0, color: '#B7791F' }} />
+            <span>
+              <strong>
+                {isRTL ? 'تجريبي - غير متصل بالمطعم: ' : 'Demo - not connected to the restaurant: '}
+              </strong>
+              {isRTL
+                ? 'المطعم لا يقبل الحجوزات المسبقة ويعمل بنظام أسبقية الحضور. هذا النموذج مخصص للعرض البرمجي فقط وتُحفظ رسائله محلياً بالمتصفح.'
+                : 'The venue does not take advance reservations and operates on a walk-in basis. This form is a frontend demonstration only.'}
+            </span>
+          </div>
+
+          {isSubmitted ? (
+            <div className="reservation-success-box" role="status">
+              <div className="success-icon-wrap" aria-hidden="true">
+                <CheckCircle size={36} />
+              </div>
+              <h3 style={{ fontSize: '1.375rem', marginBottom: '8px', color: '#1B4D18' }}>
+                {isRTL ? 'تم تسجيل الطلب التجريبي' : 'Demo Request Recorded'}
+              </h3>
+              <p style={{ fontSize: '0.9375rem', color: '#3A5C37', marginBottom: '18px', lineHeight: '1.6' }}>
+                {isRTL 
+                  ? 'تم حفظ طلبك محلياً في هذا المتصفح للعرض التجريبي (/admin). نذكركم بأن المطعم لا يعتمد الحجز المسبق ويرحب بكم دائماً بأسبقية الحضور.' 
+                  : 'Your request has been recorded locally in this browser for demo purposes. Please remember that Oldish does not take reservations and operates on a walk-in basis.'}
+              </p>
+
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <a
+                  href={`tel:${siteSettings.phone.replace(/\s+/g, '')}`}
+                  className="btn btn-primary btn-sm"
+                >
+                  <Phone size={15} />
+                  <span>{isRTL ? 'الاتصال بالمطعم للاستفسار' : 'Call Venue directly'}</span>
+                </a>
+
+                <button
+                  type="button"
+                  className="btn btn-outline-gold btn-sm"
+                  onClick={() => setIsSubmitted(false)}
+                >
+                  {isRTL ? 'إرسال طلب تجريبي آخر' : 'Submit Another Demo Request'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} noValidate>
+              {/* Anti-spam honeypot - hidden from human users */}
+              <input 
+                type="text" 
+                name="user_nickname_field"
+                value={form.honeypot} 
+                onChange={(e) => setForm({ ...form, honeypot: e.target.value })} 
+                style={{ display: 'none' }} 
+                tabIndex={-1} 
+                autoComplete="off" 
+              />
+
+              <div className="reservation-form-grid">
+                <div className="form-group">
+                  <label htmlFor="res-name" className="form-label">
+                    <User size={15} style={{ color: 'var(--color-gold)' }} />
+                    <span>{isRTL ? 'الاسم' : 'Full Name'} *</span>
+                  </label>
+                  <input
+                    id="res-name"
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className={`form-input ${errors.name ? 'has-error' : ''}`}
+                    placeholder={isRTL ? 'اسمك الكريم' : 'Your Name'}
+                    required
+                  />
+                  {errors.name && <span className="form-error-msg">{errors.name}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="res-phone" className="form-label">
+                    <Phone size={15} style={{ color: 'var(--color-gold)' }} />
+                    <span>{isRTL ? 'رقم الهاتف' : 'Phone Number'} *</span>
+                  </label>
+                  <input
+                    id="res-phone"
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    className={`form-input ${errors.phone ? 'has-error' : ''}`}
+                    placeholder="+20 1X XXXX XXXX"
+                    required
+                  />
+                  {errors.phone && <span className="form-error-msg">{errors.phone}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="res-date" className="form-label">
+                    <Calendar size={15} style={{ color: 'var(--color-gold)' }} />
+                    <span>{isRTL ? 'التاريخ المتوقع' : 'Expected Date'}</span>
+                  </label>
+                  <input
+                    id="res-date"
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="res-time" className="form-label">
+                    <Clock size={15} style={{ color: 'var(--color-gold)' }} />
+                    <span>{isRTL ? 'الوقت التقريبي' : 'Approximate Time'}</span>
+                  </label>
+                  <select
+                    id="res-time"
+                    value={form.time}
+                    onChange={(e) => setForm({ ...form, time: e.target.value })}
+                    className="form-select"
+                  >
+                    <option value="10:00">10:00 AM (Breakfast)</option>
+                    <option value="13:00">01:00 PM (Lunch)</option>
+                    <option value="16:00">04:00 PM (Afternoon)</option>
+                    <option value="19:00">07:00 PM (Dinner)</option>
+                    <option value="21:00">09:00 PM (Evening)</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="res-guests" className="form-label">
+                    <Users size={15} style={{ color: 'var(--color-gold)' }} />
+                    <span>{isRTL ? 'عدد الأفراد' : 'Party Size'}</span>
+                  </label>
+                  <select
+                    id="res-guests"
+                    value={form.guests}
+                    onChange={(e) => setForm({ ...form, guests: e.target.value })}
+                    className="form-select"
+                  >
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6+">6+</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="res-email" className="form-label">
+                    <Mail size={15} style={{ color: 'var(--color-gold)' }} />
+                    <span>{isRTL ? 'البريد الإلكتروني (اختياري)' : 'Email (Optional)'}</span>
+                  </label>
+                  <input
+                    id="res-email"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group form-full-width">
+                  <label htmlFor="res-message" className="form-label">
+                    <span>{isRTL ? 'ملاحظة خاصة أو استفسار' : 'Special Notes / Requests'}</span>
+                  </label>
+                  <textarea
+                    id="res-message"
+                    rows={2}
+                    value={form.message}
+                    onChange={(e) => setForm({ ...form, message: e.target.value })}
+                    className="form-textarea"
+                    placeholder={isRTL ? 'احتفال عائلي، مناسبة، متطلبات خاصة...' : 'Gathering, study session, birthday...'}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn btn-secondary"
+                  style={{ minWidth: '220px' }}
+                >
+                  <Send size={15} />
+                  <span>{isSubmitting ? (isRTL ? 'جارٍ الإرسال...' : 'Sending...') : (isRTL ? 'إرسال طلب الحجز (تجريبي)' : 'Send Reservation Request (Demo)')}</span>
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};
