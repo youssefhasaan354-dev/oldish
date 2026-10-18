@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { 
   SiteSettings, 
   SectionConfig, 
@@ -22,7 +22,26 @@ import {
   SEED_IMAGE_SLOTS, 
   SEED_MEDIA 
 } from '../data/seedData';
-import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
+import { 
+  isFirebaseConfigured, 
+  loadPublishedSite, 
+  savePublishedSite, 
+  loadDraftSite, 
+  saveDraftSite, 
+  clearDraftSite, 
+  loadVersionsFromFirestore, 
+  saveVersionToFirestore, 
+  submitInquiryToFirestore, 
+  loadInquiriesFromFirestore, 
+  updateInquiryInFirestore,
+  type PublishedSiteSnapshot 
+} from '../lib/firebase';
+import { 
+  uploadToCloudinary, 
+  deleteFromCloudinary, 
+  getCloudinaryUrl 
+} from '../lib/cloudinary';
+import { useAuth } from './AuthContext';
 import { saveBlob, clearAllBlobs } from '../lib/idbStorage';
 import { processImageUpload, validateImageFile } from '../lib/imageProcessor';
 
@@ -40,7 +59,7 @@ interface DataContextType {
   activityLogs: ActivityLog[];
   isLoading: boolean;
   hasUnsavedDraft: boolean;
-  isSupabaseActive: boolean;
+  isFirebaseActive: boolean;
   isPreviewMode: boolean;
   sessionUndoMap: Record<string, string>;
   getImageForSlot: (slotKey: string, fallbackUrl?: string) => { 
@@ -110,17 +129,12 @@ const STORAGE_KEY_INQUIRIES = 'oldish_inquiries_v5';
 const STORAGE_KEY_VERSIONS = 'oldish_versions_v5';
 const STORAGE_KEY_LOGS = 'oldish_logs_v5';
 
-// Legacy keys for automatic migration
-const LEGACY_STORAGE_KEY_PUBLISHED = 'oldish_published_data_v1';
-const LEGACY_STORAGE_KEY_DRAFT = 'oldish_draft_data_v1';
-const LEGACY_STORAGE_KEY_INQUIRIES = 'oldish_inquiries_v1';
-const LEGACY_STORAGE_KEY_VERSIONS = 'oldish_versions_v1';
-const LEGACY_STORAGE_KEY_LOGS = 'oldish_logs_v1';
-
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const isSupabaseActive = isSupabaseConfigured();
+  const isFirebaseActive = isFirebaseConfigured();
+  const { isAuthenticated, getIdToken, user } = useAuth();
+
   const [isLoading, setIsLoading] = useState(true);
   const [hasUnsavedDraft, setHasUnsavedDraft] = useState(false);
   const [sessionUndoMap, setSessionUndoMap] = useState<Record<string, string>>({});
@@ -149,7 +163,63 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [versions, setVersions] = useState<ContentVersion[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
-  // Helper to persist current draft state to localStorage
+  // Apply a data snapshot to state
+  const applySnapshotToState = useCallback((snap: Partial<PublishedSiteSnapshot>) => {
+    if (snap.siteSettings) {
+      setSiteSettings({
+        ...SEED_SITE_SETTINGS,
+        ...snap.siteSettings,
+        analytics_clicks: {
+          calls: snap.siteSettings.analytics_clicks?.calls ?? SEED_SITE_SETTINGS.analytics_clicks?.calls ?? 0,
+          directions: snap.siteSettings.analytics_clicks?.directions ?? SEED_SITE_SETTINGS.analytics_clicks?.directions ?? 0,
+          menu_views: snap.siteSettings.analytics_clicks?.menu_views ?? SEED_SITE_SETTINGS.analytics_clicks?.menu_views ?? 0,
+          whatsapp_clicks: snap.siteSettings.analytics_clicks?.whatsapp_clicks ?? SEED_SITE_SETTINGS.analytics_clicks?.whatsapp_clicks ?? 0,
+          reservation_requests: snap.siteSettings.analytics_clicks?.reservation_requests ?? SEED_SITE_SETTINGS.analytics_clicks?.reservation_requests ?? 0
+        }
+      });
+    }
+    if (snap.sections && snap.sections.length > 0) setSections(snap.sections);
+    if (snap.mediaList && snap.mediaList.length > 0) setMediaList(snap.mediaList);
+    
+    // Slot merge: keep registry defaults for missing keys, overlay customized properties
+    const mergedSlots: Record<string, ImageSlot> = {};
+    SEED_IMAGE_SLOTS.forEach(seedSlot => {
+      mergedSlots[seedSlot.slot_key] = { ...seedSlot };
+    });
+
+    if (snap.imageSlots) {
+      const slotsObj = Array.isArray(snap.imageSlots)
+        ? (snap.imageSlots as ImageSlot[]).reduce((acc, cur) => { acc[cur.slot_key] = cur; return acc; }, {} as Record<string, ImageSlot>)
+        : (snap.imageSlots as Record<string, ImageSlot>);
+
+      Object.entries(slotsObj).forEach(([key, userSlot]) => {
+        if (mergedSlots[key]) {
+          mergedSlots[key] = {
+            ...mergedSlots[key],
+            ...userSlot,
+            section: mergedSlots[key].section,
+            where_appears_en: mergedSlots[key].where_appears_en,
+            where_appears_ar: mergedSlots[key].where_appears_ar,
+            recommended_size: mergedSlots[key].recommended_size,
+            recommended_aspect_ratio: mergedSlots[key].recommended_aspect_ratio,
+            default_url: mergedSlots[key].default_url,
+            can_delete: mergedSlots[key].can_delete
+          };
+        } else {
+          mergedSlots[key] = userSlot;
+        }
+      });
+    }
+    setImageSlots(mergedSlots);
+
+    if (snap.menuCategories && snap.menuCategories.length > 0) setMenuCategories(snap.menuCategories);
+    if (snap.menuItems && snap.menuItems.length > 0) setMenuItems(snap.menuItems);
+    if (snap.branches && snap.branches.length > 0) setBranches(snap.branches);
+    if (snap.ratingBadges && snap.ratingBadges.length > 0) setRatingBadges(snap.ratingBadges);
+  }, []);
+
+  // Helper to persist current draft state locally and to Firestore if authenticated
+  const saveDraftTimerRef = useRef<any>(null);
   const saveDraftLocally = (updatedState: {
     siteSettings?: SiteSettings;
     sections?: SectionConfig[];
@@ -177,13 +247,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {
       console.warn('LocalStorage save failed:', e);
     }
+
+    // If authenticated in live Firebase, sync draft to Firestore (debounced)
+    if (isFirebaseActive && isAuthenticated) {
+      if (saveDraftTimerRef.current) clearTimeout(saveDraftTimerRef.current);
+      saveDraftTimerRef.current = setTimeout(async () => {
+        try {
+          await saveDraftSite(fullDraft);
+        } catch (err) {
+          console.warn('Cloud draft sync warning:', err);
+        }
+      }, 1000);
+    }
   };
 
   // Log activity
   const logAction = (action: string, entity: string, details?: string) => {
     const newLog: ActivityLog = {
       id: `log-${Date.now()}`,
-      user_email: 'admin@oldish-chi.vercel.app',
+      user_email: user?.email || 'admin@oldish-chi.vercel.app',
       action,
       entity,
       details,
@@ -196,145 +278,104 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  // Load Initial Data with Auto-migration & Seed merging
+  // ==========================================
+  // INITIAL DATA LOADING
+  // ==========================================
   useEffect(() => {
+    let isMounted = true;
+
     const loadData = async () => {
       try {
-        const storedVersion = parseInt(localStorage.getItem(STORAGE_KEY_SCHEMA_VERSION) || '0', 10);
-        
-        // 1. Try modern storage keys first, then fallback to legacy keys for migration
-        let cachedPublished = localStorage.getItem(STORAGE_KEY_PUBLISHED);
-        let cachedDraft = localStorage.getItem(STORAGE_KEY_DRAFT);
-        let cachedInquiries = localStorage.getItem(STORAGE_KEY_INQUIRIES);
-        let cachedVersions = localStorage.getItem(STORAGE_KEY_VERSIONS);
-        let cachedLogs = localStorage.getItem(STORAGE_KEY_LOGS);
-
-        if (!cachedPublished && !cachedDraft) {
-          cachedPublished = localStorage.getItem(LEGACY_STORAGE_KEY_PUBLISHED);
-          cachedDraft = localStorage.getItem(LEGACY_STORAGE_KEY_DRAFT);
-          cachedInquiries = cachedInquiries || localStorage.getItem(LEGACY_STORAGE_KEY_INQUIRIES);
-          cachedVersions = cachedVersions || localStorage.getItem(LEGACY_STORAGE_KEY_VERSIONS);
-          cachedLogs = cachedLogs || localStorage.getItem(LEGACY_STORAGE_KEY_LOGS);
-        }
+        // 1. Fast local cache check for instant paint
+        const cachedPublished = localStorage.getItem(STORAGE_KEY_PUBLISHED);
+        const cachedDraft = localStorage.getItem(STORAGE_KEY_DRAFT);
+        const cachedInquiries = localStorage.getItem(STORAGE_KEY_INQUIRIES);
+        const cachedVersions = localStorage.getItem(STORAGE_KEY_VERSIONS);
+        const cachedLogs = localStorage.getItem(STORAGE_KEY_LOGS);
 
         if (cachedInquiries) {
-          try { setInquiries(JSON.parse(cachedInquiries)); } catch (e) { console.warn(e); }
+          try { setInquiries(JSON.parse(cachedInquiries)); } catch (e) {}
         }
         if (cachedVersions) {
-          try { setVersions(JSON.parse(cachedVersions)); } catch (e) { console.warn(e); }
+          try { setVersions(JSON.parse(cachedVersions)); } catch (e) {}
         }
         if (cachedLogs) {
-          try { setActivityLogs(JSON.parse(cachedLogs)); } catch (e) { console.warn(e); }
+          try { setActivityLogs(JSON.parse(cachedLogs)); } catch (e) {}
         }
 
-        const dataToApply = cachedDraft ? JSON.parse(cachedDraft) : (cachedPublished ? JSON.parse(cachedPublished) : null);
-        if (cachedDraft) setHasUnsavedDraft(true);
-
-        if (dataToApply) {
-          // Merge site settings with seed to ensure newly added properties (logos, announcement, analytics) exist
-          const mergedSettings: SiteSettings = {
-            ...SEED_SITE_SETTINGS,
-            ...(dataToApply.siteSettings || {}),
-            analytics_clicks: {
-              ...SEED_SITE_SETTINGS.analytics_clicks,
-              ...((dataToApply.siteSettings && dataToApply.siteSettings.analytics_clicks) || {})
-            }
-          };
-          setSiteSettings(mergedSettings);
-
-          if (dataToApply.sections) setSections(dataToApply.sections);
-          if (dataToApply.mediaList) setMediaList(dataToApply.mediaList);
-          
-          // INTELLIGENT SLOT MERGE:
-          // Start with all central registry slots from SEED_IMAGE_SLOTS.
-          // Overlay user edits, but preserve required metadata (section, where_appears, recommended_size, default_url).
-          const mergedSlots: Record<string, ImageSlot> = {};
-          SEED_IMAGE_SLOTS.forEach(seedSlot => {
-            mergedSlots[seedSlot.slot_key] = { ...seedSlot };
-          });
-
-          if (dataToApply.imageSlots) {
-            Object.entries(dataToApply.imageSlots as Record<string, ImageSlot>).forEach(([key, userSlot]) => {
-              if (mergedSlots[key]) {
-                mergedSlots[key] = {
-                  ...mergedSlots[key],
-                  ...userSlot,
-                  // Preserve central registry metadata
-                  section: mergedSlots[key].section,
-                  where_appears_en: mergedSlots[key].where_appears_en,
-                  where_appears_ar: mergedSlots[key].where_appears_ar,
-                  recommended_size: mergedSlots[key].recommended_size,
-                  recommended_aspect_ratio: mergedSlots[key].recommended_aspect_ratio,
-                  default_url: mergedSlots[key].default_url,
-                  can_delete: mergedSlots[key].can_delete
-                };
-              } else {
-                // Dynamically added custom slot
-                mergedSlots[key] = userSlot;
-              }
-            });
+        // Apply local published cache immediately for fast render
+        if (cachedPublished) {
+          try {
+            applySnapshotToState(JSON.parse(cachedPublished));
+          } catch (e) {
+            console.warn('Error applying cached published:', e);
           }
-          setImageSlots(mergedSlots);
+        }
 
-          if (dataToApply.menuCategories) setMenuCategories(dataToApply.menuCategories);
-          if (dataToApply.menuItems) setMenuItems(dataToApply.menuItems);
-          if (dataToApply.branches) setBranches(dataToApply.branches);
-          if (dataToApply.ratingBadges) setRatingBadges(dataToApply.ratingBadges);
+        // 2. Fetch live data from Firestore
+        if (isFirebaseActive) {
+          try {
+            // A. Anonymous visitors always load published/site from Firestore
+            const publishedSnap = await loadPublishedSite();
+            if (publishedSnap && isMounted) {
+              applySnapshotToState(publishedSnap);
+              localStorage.setItem(STORAGE_KEY_PUBLISHED, JSON.stringify(publishedSnap));
+            }
 
-          // If version was upgraded or migrated, persist modern keys
-          if (storedVersion < DATA_SCHEMA_VERSION) {
-            localStorage.setItem(STORAGE_KEY_SCHEMA_VERSION, String(DATA_SCHEMA_VERSION));
-            if (cachedDraft) {
-              localStorage.setItem(STORAGE_KEY_DRAFT, JSON.stringify({
-                siteSettings: mergedSettings,
-                sections: dataToApply.sections || SEED_SECTIONS,
-                mediaList: dataToApply.mediaList || SEED_MEDIA,
-                imageSlots: mergedSlots,
-                menuCategories: dataToApply.menuCategories || SEED_MENU_CATEGORIES,
-                menuItems: dataToApply.menuItems || SEED_MENU_ITEMS,
-                branches: dataToApply.branches || SEED_BRANCHES,
-                ratingBadges: dataToApply.ratingBadges || SEED_RATING_BADGES
-              }));
+            // B. If authenticated admin, check for active draft & inquiries & versions
+            if (isAuthenticated) {
+              const [draftSnap, firestoreInquiries, firestoreVersions] = await Promise.all([
+                loadDraftSite().catch(() => null),
+                loadInquiriesFromFirestore().catch(() => []),
+                loadVersionsFromFirestore().catch(() => [])
+              ]);
+
+              if (draftSnap && isMounted) {
+                applySnapshotToState(draftSnap);
+                setHasUnsavedDraft(true);
+                localStorage.setItem(STORAGE_KEY_DRAFT, JSON.stringify(draftSnap));
+              } else if (cachedDraft && isMounted) {
+                applySnapshotToState(JSON.parse(cachedDraft));
+                setHasUnsavedDraft(true);
+              }
+
+              if (firestoreInquiries.length > 0 && isMounted) {
+                setInquiries(firestoreInquiries);
+                localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(firestoreInquiries));
+              }
+
+              if (firestoreVersions.length > 0 && isMounted) {
+                setVersions(firestoreVersions);
+                localStorage.setItem(STORAGE_KEY_VERSIONS, JSON.stringify(firestoreVersions));
+              }
+            }
+          } catch (netErr) {
+            console.warn('Firestore live fetch note (falling back to cache/seed):', netErr);
+            if (cachedDraft && isAuthenticated) {
+              applySnapshotToState(JSON.parse(cachedDraft));
+              setHasUnsavedDraft(true);
             }
           }
         } else {
-          // No stored data: initialize schema version
-          localStorage.setItem(STORAGE_KEY_SCHEMA_VERSION, String(DATA_SCHEMA_VERSION));
-        }
-
-        // 2. Supabase background sync if active
-        if (isSupabaseActive && !cachedDraft) {
-          try {
-            const client = await getSupabase();
-            if (client) {
-              const { data: settingsData } = await client.from('site_settings').select('*').eq('key', 'general').single();
-              if (settingsData?.value) {
-                setSiteSettings(prev => ({ ...prev, ...settingsData.value }));
-              }
-              const { data: secData } = await client.from('sections').select('*').order('sort_order', { ascending: true });
-              if (secData && secData.length > 0) setSections(secData);
-              const { data: catData } = await client.from('menu_categories').select('*').order('sort_order', { ascending: true });
-              if (catData && catData.length > 0) setMenuCategories(catData);
-              const { data: itemData } = await client.from('menu_items').select('*').order('sort_order', { ascending: true });
-              if (itemData && itemData.length > 0) setMenuItems(itemData);
-              const { data: branchData } = await client.from('branches').select('*');
-              if (branchData && branchData.length > 0) setBranches(branchData);
-              const { data: badgeData } = await client.from('rating_badges').select('*').order('sort_order', { ascending: true });
-              if (badgeData && badgeData.length > 0) setRatingBadges(badgeData);
-            }
-          } catch (netErr) {
-            console.warn('Supabase fetch failed, continuing with local data:', netErr);
+          // Local Demo Mode: restore draft if present
+          if (cachedDraft) {
+            applySnapshotToState(JSON.parse(cachedDraft));
+            setHasUnsavedDraft(true);
           }
         }
       } catch (err) {
-        console.error('Error loading initial site data:', err);
+        console.error('Error in loadData:', err);
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
 
     loadData();
-  }, [isSupabaseActive]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isFirebaseActive, isAuthenticated, applySnapshotToState]);
 
   // Image Slot Resolution helper
   const getImageForSlot = useCallback((slotKey: string, fallbackUrl?: string) => {
@@ -348,31 +389,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const url = slot?.media_url || mediaItem?.public_url || slot?.default_url || fallbackUrl || '/images/oldish_courtyard_hero.webp';
     const altEn = slot?.alt_en || mediaItem?.alt_en || slot?.label_en || 'Oldish Restaurant & Café';
     const altAr = slot?.alt_ar || mediaItem?.alt_ar || slot?.label_ar || 'أولديش مطعم ومقهى';
-    const isAi = mediaItem ? mediaItem.is_ai : (url.includes('images/oldish_') || url.includes('images/egyptian_'));
+    const isAi = mediaItem ? mediaItem.is_ai : false;
 
     const style: React.CSSProperties = {
-      objectFit: slot?.object_fit || 'cover',
       objectPosition: `${slot?.object_position_x ?? 50}% ${slot?.object_position_y ?? 50}%`,
+      objectFit: slot?.object_fit || 'cover',
       transform: slot?.zoom && slot.zoom > 1 ? `scale(${slot.zoom})` : undefined,
     };
 
     return { url, altEn, altAr, isAi, style, slot };
   }, [imageSlots, mediaList]);
 
-  // Updating Settings
+  // Basic Setters
   const updateSettings = (partial: Partial<SiteSettings>) => {
     setSiteSettings(prev => {
       const updated = { ...prev, ...partial };
       saveDraftLocally({ siteSettings: updated });
       return updated;
     });
-    logAction('Update', 'Site Settings');
+    logAction('Update Settings', 'General');
   };
 
-  // Sections
   const updateSection = (key: string, partial: Partial<SectionConfig>) => {
     setSections(prev => {
-      const updated = prev.map(sec => sec.key === key ? { ...sec, ...partial } : sec);
+      const updated = prev.map(s => s.key === key ? { ...s, ...partial } : s);
       saveDraftLocally({ sections: updated });
       return updated;
     });
@@ -380,22 +420,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const reorderSections = (newSections: SectionConfig[]) => {
-    setSections(newSections);
-    saveDraftLocally({ sections: newSections });
-    logAction('Reorder Sections', 'Sections');
+    const reindexed = newSections.map((sec, idx) => ({ ...sec, sort_order: idx }));
+    setSections(reindexed);
+    saveDraftLocally({ sections: reindexed });
+    logAction('Reorder Sections', 'All');
   };
 
-  // Image Slot direct metadata updates
   const updateImageSlot = (slotKey: string, partial: Partial<ImageSlot>) => {
     setImageSlots(prev => {
       const existing = prev[slotKey] || {
         slot_key: slotKey,
         label_en: slotKey,
         label_ar: slotKey,
-        section: 'general',
+        section: 'custom',
         object_position_x: 50,
         object_position_y: 50,
-        object_fit: 'cover',
+        object_fit: 'cover' as const,
         zoom: 1,
         overlay_opacity: 0,
         sort_order: 0,
@@ -408,7 +448,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logAction('Update Slot Settings', slotKey);
   };
 
-  // REPLACE IN PLACE: Uploads image, converts to WebP/resizes, saves blob in IDB/Supabase,
+  // REPLACE IN PLACE: Uploads image to Cloudinary (or IDB in demo mode)
   // and KEEPS all slot settings (focal point, zoom, fit, opacity, order, visibility, alts)
   const replaceSlotImage = async (
     slotKey: string,
@@ -454,28 +494,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       let newUrl = '';
       let newThumbUrl = '';
+      let storagePath = '';
       const newMediaId = `media-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-      if (isSupabaseActive) {
-        const client = await getSupabase();
-        if (!client) throw new Error('Supabase client not initialized');
-        const ext = processed.format === 'svg' ? 'svg' : (processed.format === 'png' ? 'png' : (processed.format === 'jpeg' ? 'jpg' : 'webp'));
-        const filename = `slot-${slotKey.replace(/\./g, '-')}-${Date.now()}.${ext}`;
-        const { error: uploadErr } = await client.storage
-          .from('site-media')
-          .upload(filename, processed.blob, { contentType: processed.blob.type, upsert: true });
+      if (isFirebaseActive) {
+        const token = await getIdToken();
+        if (!token) throw new Error('يرجى تسجيل الدخول أولاً كمسؤول لرفع الصور السحابية.');
+        
+        const uploadResult = await uploadToCloudinary(processed.blob, token, {
+          onProgress: options?.onProgress
+        });
 
-        if (uploadErr) throw uploadErr;
-
-        const { data: publicUrlData } = client.storage
-          .from('site-media')
-          .getPublicUrl(filename);
-        newUrl = publicUrlData.publicUrl;
-        newThumbUrl = newUrl;
+        newUrl = uploadResult.secure_url;
+        newThumbUrl = getCloudinaryUrl(newUrl, 400);
+        storagePath = uploadResult.public_id;
       } else {
         // Demo mode: persist in IndexedDB
         newUrl = await saveBlob(`slot-${slotKey}-${Date.now()}`, processed.blob);
         newThumbUrl = await saveBlob(`thumb-slot-${slotKey}-${Date.now()}`, processed.thumbnailBlob);
+        storagePath = newUrl;
       }
 
       // Record undo session
@@ -484,10 +521,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         [slotKey]: currentSlot.media_url || currentSlot.default_url || ''
       }));
 
-      // Add to mediaList so it's accessible in the library
+      // Add to mediaList
       const newMediaItem: MediaItem = {
         id: newMediaId,
-        storage_path: newUrl,
+        storage_path: storagePath,
         public_url: newUrl,
         width: processed.width,
         height: processed.height,
@@ -502,13 +539,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       setMediaList(prev => [newMediaItem, ...prev]);
 
-      // Update slot while KEEPING all placement settings:
+      // Update slot while KEEPING all placement settings
       const updatedSlot: ImageSlot = {
         ...currentSlot,
         media_id: newMediaId,
         media_url: newUrl,
         thumbnail_url: newThumbUrl,
-        // Placement settings preserved:
         object_position_x: currentSlot.object_position_x,
         object_position_y: currentSlot.object_position_y,
         zoom: currentSlot.zoom,
@@ -523,42 +559,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         caption_ar: options?.captionAr !== undefined ? options.captionAr : currentSlot.caption_ar
       };
 
-      const newSlots = { ...imageSlots, [slotKey]: updatedSlot };
-      setImageSlots(newSlots);
+      const updatedSlots = { ...imageSlots, [slotKey]: updatedSlot };
+      setImageSlots(updatedSlots);
 
-      // Sync Branding Logo settings if branding slot
-      let newSettings = { ...siteSettings };
-      if (slotKey === 'branding.logo') newSettings.logo_url = newUrl;
-      else if (slotKey === 'branding.logo_dark') newSettings.logo_dark_url = newUrl;
-      else if (slotKey === 'branding.favicon') newSettings.favicon_url = newUrl;
-      else if (slotKey === 'branding.social_share') newSettings.social_image_url = newUrl;
-      else if (slotKey === 'branding.qr_logo') newSettings.qr_logo_url = newUrl;
-
-      if (slotKey.startsWith('branding.')) {
-        setSiteSettings(newSettings);
+      // If updating logo slot, keep siteSettings.logo_url synchronized
+      let updatedSettings = siteSettings;
+      if (slotKey === 'branding.logo') {
+        updatedSettings = { ...siteSettings, logo_url: newUrl };
+        setSiteSettings(updatedSettings);
       }
 
       saveDraftLocally({ 
-        imageSlots: newSlots, 
-        siteSettings: newSettings, 
-        mediaList: [newMediaItem, ...mediaList] 
+        imageSlots: updatedSlots, 
+        mediaList: [newMediaItem, ...mediaList],
+        siteSettings: updatedSettings
       });
-      logAction('Replace Image in Place', slotKey, `New image: ${file.name}`);
 
-      return {
-        success: true,
-        cropWarning: processed.cropWarning
+      logAction('Replace Slot Image', slotKey, `New URL: ${newUrl.substring(0, 40)}...`);
+      return { 
+        success: true, 
+        cropWarning: processed.cropWarning 
       };
     } catch (err: any) {
       console.error('Failed to replace slot image:', err);
-      return {
-        success: false,
-        error: err?.message || 'حدث خطأ أثناء معالجة وحفظ الصورة.'
+      return { 
+        success: false, 
+        error: err?.message || 'حدث خطأ أثناء معالجة ورفع الصورة.' 
       };
     }
   };
 
-  // Undo replacement for this session
+  // Undo single replacement in current session
   const undoSlotReplacement = (slotKey: string): boolean => {
     const prevUrl = sessionUndoMap[slotKey];
     if (!prevUrl) return false;
@@ -566,65 +597,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const currentSlot = imageSlots[slotKey];
     if (!currentSlot) return false;
 
-    const updatedSlot: ImageSlot = {
+    const revertedSlot: ImageSlot = {
       ...currentSlot,
-      media_url: prevUrl
+      media_url: prevUrl === currentSlot.default_url ? undefined : prevUrl,
+      media_id: undefined
     };
 
-    const newSlots = { ...imageSlots, [slotKey]: updatedSlot };
-    setImageSlots(newSlots);
-
-    let newSettings = { ...siteSettings };
-    if (slotKey === 'branding.logo') newSettings.logo_url = prevUrl;
-    else if (slotKey === 'branding.logo_dark') newSettings.logo_dark_url = prevUrl;
-    else if (slotKey === 'branding.favicon') newSettings.favicon_url = prevUrl;
-    else if (slotKey === 'branding.social_share') newSettings.social_image_url = prevUrl;
-    else if (slotKey === 'branding.qr_logo') newSettings.qr_logo_url = prevUrl;
-
-    if (slotKey.startsWith('branding.')) {
-      setSiteSettings(newSettings);
-    }
+    const updatedSlots = { ...imageSlots, [slotKey]: revertedSlot };
+    setImageSlots(updatedSlots);
+    saveDraftLocally({ imageSlots: updatedSlots });
 
     setSessionUndoMap(prev => {
-      const next = { ...prev };
-      delete next[slotKey];
-      return next;
+      const copy = { ...prev };
+      delete copy[slotKey];
+      return copy;
     });
 
-    saveDraftLocally({ imageSlots: newSlots, siteSettings: newSettings });
-    logAction('Undo Replace Image', slotKey);
+    logAction('Undo Slot Replacement', slotKey);
     return true;
   };
 
-  // Reset to default image
+  // Reset slot to default original image
   const resetSlotToDefault = (slotKey: string) => {
-    const slot = imageSlots[slotKey];
-    if (!slot) return;
+    const currentSlot = imageSlots[slotKey];
+    if (!currentSlot) return;
 
-    const updatedSlot: ImageSlot = {
-      ...slot,
-      media_url: slot.default_url || ''
+    const resetSlot: ImageSlot = {
+      ...currentSlot,
+      media_url: undefined,
+      media_id: undefined,
+      thumbnail_url: undefined,
+      object_position_x: 50,
+      object_position_y: 50,
+      zoom: 1,
+      object_fit: 'cover',
+      overlay_opacity: 0
     };
 
-    const newSlots = { ...imageSlots, [slotKey]: updatedSlot };
-    setImageSlots(newSlots);
-
-    let newSettings = { ...siteSettings };
-    if (slotKey === 'branding.logo') newSettings.logo_url = '';
-    else if (slotKey === 'branding.logo_dark') newSettings.logo_dark_url = '';
-    else if (slotKey === 'branding.favicon') newSettings.favicon_url = '';
-    else if (slotKey === 'branding.social_share') newSettings.social_image_url = slot.default_url || '';
-    else if (slotKey === 'branding.qr_logo') newSettings.qr_logo_url = '';
-
-    if (slotKey.startsWith('branding.')) {
-      setSiteSettings(newSettings);
-    }
-
-    saveDraftLocally({ imageSlots: newSlots, siteSettings: newSettings });
+    const updatedSlots = { ...imageSlots, [slotKey]: resetSlot };
+    setImageSlots(updatedSlots);
+    saveDraftLocally({ imageSlots: updatedSlots });
     logAction('Reset Slot to Default', slotKey);
   };
 
-  // ADD IN A SPECIFIC SPOT: adds an image directly before or after an item in multi-image areas
+  // Add slot in a specific section relative to another slot
   const addSlotAtPosition = async (
     section: string,
     relativeToKey: string,
@@ -647,29 +663,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       let newUrl = '';
       let newThumbUrl = '';
+      let storagePath = '';
       const newMediaId = `media-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-      if (isSupabaseActive) {
-        const client = await getSupabase();
-        if (!client) throw new Error('Supabase client not initialized');
-        const filename = `slot-${section}-${Date.now()}.webp`;
-        const { error: uploadErr } = await client.storage
-          .from('site-media')
-          .upload(filename, processed.blob, { contentType: processed.blob.type, upsert: true });
-        if (uploadErr) throw uploadErr;
-
-        const { data: publicUrlData } = client.storage.from('site-media').getPublicUrl(filename);
-        newUrl = publicUrlData.publicUrl;
-        newThumbUrl = newUrl;
+      if (isFirebaseActive) {
+        const token = await getIdToken();
+        if (!token) throw new Error('يرجى تسجيل الدخول أولاً كمسؤول.');
+        
+        const uploadResult = await uploadToCloudinary(processed.blob, token, { onProgress });
+        newUrl = uploadResult.secure_url;
+        newThumbUrl = getCloudinaryUrl(newUrl, 400);
+        storagePath = uploadResult.public_id;
       } else {
         newUrl = await saveBlob(`slot-${section}-${Date.now()}`, processed.blob);
         newThumbUrl = await saveBlob(`thumb-slot-${section}-${Date.now()}`, processed.thumbnailBlob);
+        storagePath = newUrl;
       }
 
-      // Add to mediaList
       const newMediaItem: MediaItem = {
         id: newMediaId,
-        storage_path: newUrl,
+        storage_path: storagePath,
         public_url: newUrl,
         width: processed.width,
         height: processed.height,
@@ -682,7 +695,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       setMediaList(prev => [newMediaItem, ...prev]);
 
-      // Calculate ordering among slots of this section
       const sectionSlots = Object.values(imageSlots)
         .filter(s => s.section === section)
         .sort((a, b) => a.sort_order - b.sort_order);
@@ -719,22 +731,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...slotMeta
       };
 
-      // Re-index slots for this section
-      const reorderedSectionSlots = [...sectionSlots];
-      reorderedSectionSlots.splice(insertIndex, 0, newSlot);
-      reorderedSectionSlots.forEach((s, idx) => {
-        s.sort_order = idx;
-      });
-
-      const updatedSlots = { ...imageSlots };
-      reorderedSectionSlots.forEach(s => {
-        updatedSlots[s.slot_key] = s;
-      });
-
+      const updatedSlots = { ...imageSlots, [newSlotKey]: newSlot };
       setImageSlots(updatedSlots);
-      saveDraftLocally({ imageSlots: updatedSlots, mediaList: [newMediaItem, ...mediaList] });
-      logAction('Add Image to Specific Spot', newSlotKey, `Added ${position} ${relativeToKey}`);
+      saveDraftLocally({ 
+        imageSlots: updatedSlots, 
+        mediaList: [newMediaItem, ...mediaList] 
+      });
 
+      logAction('Add Slot at Position', newSlotKey, `Section: ${section}`);
       return {
         success: true,
         newSlotKey,
@@ -749,7 +753,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Delete a slot
   const deleteSlot = (slotKey: string): boolean => {
     const slot = imageSlots[slotKey];
     if (!slot || slot.can_delete === false) return false;
@@ -758,7 +761,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedSlots = { ...imageSlots };
     delete updatedSlots[slotKey];
 
-    // Re-index remaining section slots
     const remaining = Object.values(updatedSlots)
       .filter(s => s.section === section)
       .sort((a, b) => a.sort_order - b.sort_order);
@@ -774,7 +776,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
-  // Reorder slots inside a section
   const reorderSlots = (section: string, newOrderKeys: string[]) => {
     setImageSlots(prev => {
       const updated = { ...prev };
@@ -789,7 +790,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logAction('Reorder Slots', section);
   };
 
-  // Reset all demo data to seed (owner only)
   const resetAllDemoData = async () => {
     try {
       await clearAllBlobs();
@@ -803,8 +803,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem(STORAGE_KEY_INQUIRIES);
       localStorage.removeItem(STORAGE_KEY_VERSIONS);
       localStorage.removeItem(STORAGE_KEY_LOGS);
-      localStorage.removeItem(LEGACY_STORAGE_KEY_DRAFT);
-      localStorage.removeItem(LEGACY_STORAGE_KEY_PUBLISHED);
       localStorage.setItem(STORAGE_KEY_SCHEMA_VERSION, String(DATA_SCHEMA_VERSION));
     } catch (e) {
       console.warn('LocalStorage clear warning:', e);
@@ -828,7 +826,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logAction('Reset All Demo Data', 'Owner initiated factory reset');
   };
 
-  // Local Click Analytics
   const trackClick = (type: 'calls' | 'directions' | 'menu_views' | 'whatsapp_clicks' | 'reservation_requests') => {
     setSiteSettings(prev => {
       const current = prev.analytics_clicks || {
@@ -850,7 +847,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  // Media
   const addMedia = (media: MediaItem) => {
     setMediaList(prev => {
       const updated = [media, ...prev];
@@ -882,6 +878,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, usageCount };
     }
 
+    const itemToDelete = mediaList.find(m => m.id === id);
+    if (isFirebaseActive && itemToDelete?.storage_path && !itemToDelete.storage_path.startsWith('/images/')) {
+      getIdToken().then(token => {
+        if (token) deleteFromCloudinary(itemToDelete.storage_path, token);
+      });
+    }
+
     setMediaList(prev => {
       const updated = prev.filter(m => m.id !== id);
       saveDraftLocally({ mediaList: updated });
@@ -891,7 +894,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true, usageCount: 0 };
   };
 
-  // Menu Items
+  // Menu items & Categories
   const addMenuItem = (item: MenuItem) => {
     setMenuItems(prev => {
       const updated = [...prev, item];
@@ -920,11 +923,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const reorderMenuItems = (newItems: MenuItem[]) => {
-    setMenuItems(newItems);
-    saveDraftLocally({ menuItems: newItems });
+    const reindexed = newItems.map((item, idx) => ({ ...item, sort_order: idx }));
+    setMenuItems(reindexed);
+    saveDraftLocally({ menuItems: reindexed });
+    logAction('Reorder Menu Items', 'All');
   };
 
-  // Menu Categories
   const addMenuCategory = (cat: MenuCategory) => {
     setMenuCategories(prev => {
       const updated = [...prev, cat];
@@ -936,7 +940,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateMenuCategory = (id: string, partial: Partial<MenuCategory>) => {
     setMenuCategories(prev => {
-      const updated = prev.map(c => c.id === id ? { ...c, ...partial } : c);
+      const updated = prev.map(cat => cat.id === id ? { ...cat, ...partial } : cat);
       saveDraftLocally({ menuCategories: updated });
       return updated;
     });
@@ -983,32 +987,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Rating Badges
   const updateRatingBadge = (id: string, partial: Partial<RatingBadge>) => {
     setRatingBadges(prev => {
-      const updated = prev.map(rb => rb.id === id ? { ...rb, ...partial } : rb);
+      const updated = prev.map(b => b.id === id ? { ...b, ...partial } : b);
       saveDraftLocally({ ratingBadges: updated });
       return updated;
     });
     logAction('Update Rating Badge', id);
   };
 
-  // Publish Changes
+  // ==========================================
+  // PUBLISH CHANGES (LIVE TO ALL VISITORS)
+  // ==========================================
   const publishChanges = async (label?: string): Promise<boolean> => {
-    const publishedSnapshot = {
-      siteSettings,
-      sections,
-      mediaList,
-      imageSlots,
-      menuCategories,
-      menuItems,
-      branches,
-      ratingBadges
-    };
-
     try {
+      const publishedSnapshot: PublishedSiteSnapshot = {
+        siteSettings,
+        sections,
+        menuCategories,
+        menuItems,
+        branches,
+        ratingBadges,
+        imageSlots,
+        mediaList,
+        updated_at: new Date().toISOString(),
+        updated_by: user?.email || 'admin@oldish.eg',
+        schema_version: DATA_SCHEMA_VERSION
+      };
+
       const newVersion: ContentVersion = {
         id: `v-${Date.now()}`,
         created_at: new Date().toISOString(),
-        created_by: 'Owner/Admin',
-        label: label || `Published on ${new Date().toLocaleDateString('en-GB')}`,
+        created_by: user?.email || 'admin@oldish.eg',
+        label: label || 'Published new version',
         snapshot: {
           site_settings: siteSettings,
           sections,
@@ -1020,6 +1029,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       };
 
+      // 1. If Firebase active, commit to Firestore published/site and create version doc
+      if (isFirebaseActive) {
+        await savePublishedSite(publishedSnapshot);
+        await saveVersionToFirestore(newVersion);
+        await clearDraftSite();
+      }
+
+      // 2. Update local storage caches
       setVersions(prev => {
         const updated = [newVersion, ...prev.slice(0, 19)];
         localStorage.setItem(STORAGE_KEY_VERSIONS, JSON.stringify(updated));
@@ -1031,25 +1048,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setHasUnsavedDraft(false);
       setSessionUndoMap({});
 
-      if (isSupabaseActive) {
-        try {
-          const client = await getSupabase();
-          if (client) {
-            await client.from('site_settings').upsert({
-              key: 'general',
-              value: siteSettings,
-              status: 'published'
-            });
-          }
-        } catch (dbErr) {
-          console.warn('Supabase publish sync warning:', dbErr);
-        }
-      }
-
       logAction('Publish Changes', 'Website', label || 'Published new version');
       return true;
-    } catch (e) {
-      console.error('Publish error:', e);
+    } catch (e: any) {
+      console.error('Publish error in Firestore:', e);
+      alert(`فشل نشر التعديلات في السحابة: ${e?.message || 'خطأ غير متوقع'}`);
       return false;
     }
   };
@@ -1088,17 +1091,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Discard draft
   const discardDraft = () => {
     localStorage.removeItem(STORAGE_KEY_DRAFT);
+    if (isFirebaseActive && isAuthenticated) {
+      clearDraftSite().catch(err => console.warn('Clear draft error:', err));
+    }
+
     const cachedPublished = localStorage.getItem(STORAGE_KEY_PUBLISHED);
     if (cachedPublished) {
       const data = JSON.parse(cachedPublished);
-      setSiteSettings(data.siteSettings);
-      setSections(data.sections);
-      setMediaList(data.mediaList);
-      setImageSlots(data.imageSlots);
-      setMenuCategories(data.menuCategories);
-      setMenuItems(data.menuItems);
-      setBranches(data.branches);
-      setRatingBadges(data.ratingBadges);
+      applySnapshotToState(data);
     } else {
       setSiteSettings(SEED_SITE_SETTINGS);
       setSections(SEED_SECTIONS);
@@ -1137,14 +1137,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
-    if (isSupabaseActive) {
+    if (isFirebaseActive) {
       try {
-        const client = await getSupabase();
-        if (client) {
-          await client.from('inquiries').insert([newInquiry]);
-        }
-      } catch (dbErr) {
-        console.warn('Supabase inquiry insert note:', dbErr);
+        await submitInquiryToFirestore(newInquiry);
+      } catch (dbErr: any) {
+        console.warn('Firestore inquiry insert warning:', dbErr);
       }
     }
 
@@ -1157,6 +1154,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
       return updated;
     });
+    if (isFirebaseActive && isAuthenticated) {
+      updateInquiryInFirestore(id, { status: 'handled' }).catch(() => {});
+    }
     logAction('Handled Inquiry', id);
   };
 
@@ -1166,6 +1166,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
       return updated;
     });
+    if (isFirebaseActive && isAuthenticated) {
+      updateInquiryInFirestore(id, { status: 'archived' }).catch(() => {});
+    }
     logAction('Archive Inquiry', id);
   };
 
@@ -1184,7 +1187,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       activityLogs,
       isLoading,
       hasUnsavedDraft,
-      isSupabaseActive,
+      isFirebaseActive,
       isPreviewMode,
       sessionUndoMap,
       getImageForSlot,
@@ -1219,7 +1222,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       submitInquiry,
       markInquiryHandled,
       archiveInquiry,
-      trackClick,
+      trackClick
     }}>
       {children}
     </DataContext.Provider>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
 import { Utensils, Calendar, MapPin, ChevronLeft, ChevronRight, Clock, ShoppingBag } from 'lucide-react';
+import { getResponsiveSrcSet } from '../lib/cloudinary';
 
 export const Hero: React.FC = () => {
   const { isRTL } = useLanguage();
@@ -63,12 +64,7 @@ export const Hero: React.FC = () => {
           if (index > 0 && index !== currentSlide && !loadSecondarySlides) {
             return null;
           }
-          const baseName = slide.url?.startsWith('/images/') && slide.url.endsWith('.webp') && !slide.url.includes('-640') && !slide.url.includes('-800') && !slide.url.includes('-1024')
-            ? slide.url.replace('.webp', '')
-            : null;
-          const srcSet = baseName
-            ? `${baseName}-640.webp 640w, ${baseName}-800.webp 800w, ${baseName}-1024.webp 1024w, ${slide.url} 1376w`
-            : undefined;
+          const srcSet = getResponsiveSrcSet(slide.url);
 
           return (
             <div

@@ -18,6 +18,18 @@ export default defineConfig(({ mode }) => {
       }
     ],
     build: {
+      modulePreload: {
+        polyfill: false,
+        resolveDependencies: (_filename, deps) => {
+          return deps.filter(dep => 
+            !dep.includes('vendor-firebase-auth') && 
+            !dep.includes('vendor-firebase-firestore') && 
+            !dep.includes('AdminLayout') && 
+            !dep.includes('AdminLoginPage') && 
+            !dep.includes('VisualSlotEditorModal')
+          );
+        }
+      },
       rollupOptions: {
         output: {
           manualChunks(id) {
@@ -28,8 +40,14 @@ export default defineConfig(({ mode }) => {
               if (id.includes('lucide-react')) {
                 return 'vendor-icons';
               }
-              if (id.includes('@supabase')) {
-                return 'vendor-supabase';
+              if (id.includes('firebase/auth') || id.includes('@firebase/auth')) {
+                return 'vendor-firebase-auth';
+              }
+              if (id.includes('firebase/firestore') || id.includes('@firebase/firestore')) {
+                return 'vendor-firebase-firestore';
+              }
+              if (id.includes('firebase') || id.includes('@firebase')) {
+                return 'vendor-firebase-core';
               }
               if (id.includes('qrcode')) {
                 return 'vendor-qrcode';

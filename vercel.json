@@ -3,7 +3,7 @@
   "cleanUrls": false,
   "rewrites": [
     {
-      "source": "/((?!robots\\.txt|sitemap\\.xml|images/|assets/|favicon\\.svg|icons\\.svg|manifest\\.webmanifest).*)",
+      "source": "/((?!api/|robots\\.txt|sitemap\\.xml|images/|assets/|favicon\\.svg|icons\\.svg|manifest\\.webmanifest).*)",
       "destination": "/index.html"
     }
   ]

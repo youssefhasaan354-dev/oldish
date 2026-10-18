@@ -53,7 +53,7 @@ export const AdminLayout: React.FC = () => {
     versions, 
     restoreVersion, 
     inquiries, 
-    isSupabaseActive 
+    isFirebaseActive 
   } = useData();
 
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -95,10 +95,12 @@ export const AdminLayout: React.FC = () => {
         setIsPublishModalOpen(false);
         setPublishLabel('');
         alert('تم نشر التحديثات بنجاح في الموقع الرسمي!');
+      } else {
+        alert('فشل نشر التحديثات. يرجى التحقق من الاتصال والمحاولة مرة أخرى.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('حدث خطأ أثناء عملية النشر.');
+      alert('حدث خطأ أثناء عملية النشر: ' + (err?.message || 'خطأ غير معروف'));
     } finally {
       setIsPublishing(false);
     }
@@ -145,9 +147,27 @@ export const AdminLayout: React.FC = () => {
 
           {/* Database Mode Badge */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} className="hide-mobile">
-            <span className={`status-dot ${isSupabaseActive ? 'published' : 'draft'}`} />
+            <span className={`status-dot ${isFirebaseActive ? 'published' : 'draft'}`} />
             <span style={{ fontSize: '0.75rem', color: '#666' }}>
-              {isSupabaseActive ? 'Supabase Live' : 'وضع العرض المحلي (Demo Cache)'}
+              {isFirebaseActive ? 'Firebase Live' : 'وضع العرض التجريبي (Demo Cache)'}
+            </span>
+          </div>
+
+          {/* Published / Unpublished Changes Indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span className={`status-dot ${hasUnsavedDraft ? 'draft' : 'published'}`} />
+            <span 
+              style={{ 
+                fontSize: '0.75rem', 
+                fontWeight: 600, 
+                padding: '2px 8px',
+                borderRadius: '12px',
+                backgroundColor: hasUnsavedDraft ? '#FEFCBF' : '#C6F6D5',
+                color: hasUnsavedDraft ? '#975A16' : '#22543D',
+                border: `1px solid ${hasUnsavedDraft ? '#F6E05E' : '#9AE6B4'}`
+              }}
+            >
+              {hasUnsavedDraft ? 'تعديلات غير منشورة' : 'الموقع منشور ومحدث'}
             </span>
           </div>
         </div>
@@ -220,7 +240,7 @@ export const AdminLayout: React.FC = () => {
       </header>
 
       {/* Persistent Demo Mode Banner */}
-      {!isSupabaseActive && (
+      {!isFirebaseActive && (
         <div 
           style={{
             backgroundColor: '#FEF3C7',

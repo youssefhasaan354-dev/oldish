@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import type { AdminUser, UserRole } from '../../types';
 import { 
@@ -11,9 +11,16 @@ import {
   Crown
 } from 'lucide-react';
 
+import { 
+  isFirebaseConfigured, 
+  loadAdminsFromFirestore, 
+  saveAdminToFirestore, 
+  deleteAdminFromFirestore 
+} from '../../lib/firebase';
+
 const INITIAL_DEMO_USERS: AdminUser[] = [
   {
-    id: 'user_1',
+    id: 'AeJXyph2xyXUZfQOWIs4gwrJrYT2',
     email: 'owner@oldish.eg',
     role: 'owner',
     created_at: '2026-10-17T00:00:00.000Z',
@@ -42,6 +49,20 @@ export const AdminUsersManager: React.FC = () => {
   const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('editor');
 
+  useEffect(() => {
+    if (isFirebaseConfigured()) {
+      loadAdminsFromFirestore()
+        .then((admins) => {
+          if (admins.length > 0) {
+            setUsers(admins);
+          } else if (currentUser) {
+            setUsers([currentUser]);
+          }
+        })
+        .catch(err => console.warn('Failed to load admins from Firestore:', err));
+    }
+  }, [currentUser]);
+
   // Permission Guard: Only owner can manage users
   if (currentRole !== 'owner') {
     return (
@@ -57,36 +78,69 @@ export const AdminUsersManager: React.FC = () => {
     );
   }
 
-  const handleAddUser = (e: React.FormEvent) => {
+  const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail.trim()) return;
 
+    const emailClean = newEmail.trim().toLowerCase();
     const newUser: AdminUser = {
       id: `usr_${Date.now()}`,
-      email: newEmail.trim().toLowerCase(),
+      email: emailClean,
       role: newRole,
       created_at: new Date().toISOString()
     };
 
+    if (isFirebaseConfigured()) {
+      try {
+        await saveAdminToFirestore(newUser);
+      } catch (err: any) {
+        alert('فشل إضافة المستخدم في قاعدة البيانات: ' + (err?.message || 'خطأ غير معروف'));
+        return;
+      }
+    }
+
     setUsers([...users, newUser]);
     setNewEmail('');
     setIsModalOpen(false);
+    alert(`تمت إضافة المستخدم ${emailClean} بصلاحية (${newRole}). عند تسجيله للمرة الأولى سيتم تطبيق صلاحياته فوراً.`);
   };
 
-  const handleChangeRole = (userId: string, newRoleVal: UserRole) => {
+  const handleChangeRole = async (userId: string, newRoleVal: UserRole) => {
     if (userId === currentUser?.id) {
       alert('لا يمكنك تغيير صلاحية حسابك الخاص أثناء تسجيل الدخول.');
       return;
     }
-    setUsers(users.map(u => u.id === userId ? { ...u, role: newRoleVal } : u));
+    const target = users.find(u => u.id === userId);
+    if (!target) return;
+
+    const updatedUser: AdminUser = { ...target, role: newRoleVal };
+
+    if (isFirebaseConfigured()) {
+      try {
+        await saveAdminToFirestore(updatedUser);
+      } catch (err: any) {
+        alert('فشل تحديث الصلاحية: ' + (err?.message || 'خطأ غير معروف'));
+        return;
+      }
+    }
+
+    setUsers(users.map(u => u.id === userId ? updatedUser : u));
   };
 
-  const handleDeleteUser = (user: AdminUser) => {
+  const handleDeleteUser = async (user: AdminUser) => {
     if (user.id === currentUser?.id) {
       alert('لا يمكنك حذف حسابك الخاص.');
       return;
     }
     if (confirm(`هل أنت متأكد من سحب صلاحيات الحساب ${user.email}؟`)) {
+      if (isFirebaseConfigured()) {
+        try {
+          await deleteAdminFromFirestore(user.id);
+        } catch (err: any) {
+          alert('فشل حذف المستخدم: ' + (err?.message || 'خطأ غير معروف'));
+          return;
+        }
+      }
       setUsers(users.filter(u => u.id !== user.id));
     }
   };

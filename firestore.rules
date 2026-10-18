@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getAdminData() {
+      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.uid == 'AeJXyph2xyXUZfQOWIs4gwrJrYT2' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+    
+    function isOwner() {
+      return isAuthenticated() && (
+        request.auth.uid == 'AeJXyph2xyXUZfQOWIs4gwrJrYT2' ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && getAdminData().role == 'owner')
+      );
+    }
+    
+    function isOwnerOrEditor() {
+      return isAuthenticated() && (
+        request.auth.uid == 'AeJXyph2xyXUZfQOWIs4gwrJrYT2' ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && 
+          (getAdminData().role == 'owner' || getAdminData().role == 'editor'))
+      );
+    }
+
+    // 1. Published content (published/site)
+    // Readable by EVERYONE (anonymous visitors)
+    // Writable ONLY by owner or editor
+    match /published/{document=**} {
+      allow read: if true;
+      allow write: if isOwnerOrEditor();
+    }
+
+    // 2. Drafts (drafts/site)
+    // Readable and writable ONLY by owner or editor
+    match /drafts/{document=**} {
+      allow read, write: if isOwnerOrEditor();
+    }
+
+    // 3. Versions (versions/{id})
+    // Readable and writable ONLY by owner or editor
+    match /versions/{versionId} {
+      allow read, write: if isOwnerOrEditor();
+    }
+
+    // 4. Admin accounts (admins/{uid})
+    // Readable by ANY authenticated admin
+    // Writable ONLY by owner
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if isOwner();
+    }
+
+    // 5. Inquiries (inquiries/{id})
+    // Public CREATE only with validated fields
+    // Admins can read and update (status: handled, archived)
+    match /inquiries/{inquiryId} {
+      allow create: if 
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 1 &&
+        request.resource.data.name.size() <= 100 &&
+        request.resource.data.phone is string &&
+        request.resource.data.phone.size() >= 6 &&
+        request.resource.data.phone.size() <= 30 &&
+        request.resource.data.status == 'new';
+        
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}

@@ -3,7 +3,7 @@ import '../../admin.css';
 import { useAuth } from '../../context/AuthContext';
 import { Shield, Key, Mail, AlertCircle, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { isSupabaseConfigured } from '../../lib/supabase';
+import { isFirebaseConfigured } from '../../lib/firebase';
 import { useNoIndex } from '../../lib/seo';
 
 export const AdminLoginPage: React.FC = () => {
@@ -16,7 +16,8 @@ export const AdminLoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const isDemoModeActive = !isSupabaseConfigured() && (import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.VITE_DEMO_MODE === true);
+  // Demo mode is ONLY active when Firebase env vars are missing and VITE_DEMO_MODE=true
+  const isDemoModeActive = !isFirebaseConfigured() && (import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.VITE_DEMO_MODE === true);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

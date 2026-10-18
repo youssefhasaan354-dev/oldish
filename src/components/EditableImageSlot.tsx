@@ -2,6 +2,7 @@ import React from 'react';
 import { useData } from '../context/DataContext';
 import { useVisualEdit } from '../context/VisualEditContext';
 import { Camera, EyeOff } from 'lucide-react';
+import { getResponsiveSrcSet } from '../lib/cloudinary';
 
 interface EditableImageSlotProps {
   slotKey: string;
@@ -80,12 +81,7 @@ export const EditableImageSlot: React.FC<EditableImageSlotProps> = ({
 
   const effectiveAlt = alt || altAr || altEn;
 
-  const baseName = url?.startsWith('/images/') && url.endsWith('.webp') && !url.includes('-640') && !url.includes('-800') && !url.includes('-1024')
-    ? url.replace('.webp', '')
-    : null;
-  const srcSet = baseName
-    ? `${baseName}-640.webp 640w, ${baseName}-800.webp 800w, ${baseName}-1024.webp 1024w, ${url} 1200w`
-    : undefined;
+  const srcSet = getResponsiveSrcSet(url);
 
   return (
     <div 

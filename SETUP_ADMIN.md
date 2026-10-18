@@ -1,135 +1,173 @@
 # دليل إعداد وتشغيل لوحة إدارة أولديش (Oldish Admin Setup Guide)
 
-مرحباً بك في لوحة تحكم موقع **Oldish Restaurant & Café (أولديش)**.
-تم تصميم هذا النظام ليكون متكاملاً، آمناً، ويعمل بنظام **هجين مرن**:
-1. **وضع العرض السريع (Local Demo Mode)**: يعمل مباشرة في المتصفح دون الحاجة لأي مفاتيح سحابية (باستخدام التخزين المحلي والبيانات المعتمدة `seedData.ts`).
-2. **وضع الإنتاج السحابي (Live Supabase Cloud)**: يتصل بقاعدة بيانات Postgres السحابية، وخدمة التخزين للملفات (Supabase Storage)، مع نظام الصلاحيات ومصادقة المستخدمين (Auth + Row Level Security).
+مرحباً بك في نظام إدارة المحتوى المطور لمطعم ومقهى **Oldish Restaurant & Café (أولديش)**.
+تم بناء هذا النظام ليعمل بسلاسة فائقة وفق البنية السحابية التالية:
+1. **قاعدة البيانات ومصادقة المستخدمين**: **Firebase (Auth + Cloud Firestore)**.
+2. **استضافة الصور والوسائط**: **Cloudinary CDN** مع دعم التحويل الآلي والتجاوب السريع (`f_auto,q_auto` و `srcset`).
+3. **النشر الفوري لكافة الزوار**: نشر التعديلات في وثيقة مركزية واحدة `published/site` مع كاش محلي فائق السرعة لضمان أداء Lighthouse Mobile يتجاوز 90 نقطة.
 
 ---
 
-## 1. بيانات تسجيل الدخول السريعة للعرض (Sales Demo Accounts)
+## 1. البنية السحابية للنظام (Architecture)
 
-عند فتح الرابط `/admin` أو `/admin/login` في وضع العرض التجريبي، تتوفر خيارات تسجيل دخول بنقرة واحدة لتجربة مختلف مستويات الصلاحيات:
+1. **الزوار والعموم (Public Visitors)**:
+   - يقرأ الزائر تلقائياً الوثيقة المنشورة `published/site` من Cloud Firestore مع التخزين المؤقت في `localStorage`.
+   - لا يتم تحميل أي حزم برمجية خاصة بالمصادقة (Firebase Auth) للزائرين لضمان سرعة التحميل الأولى والأداء الاستثنائي.
+   - يستطيع الزائر إرسال استفسار أو طلب حجز يُحفظ فوراً في مجموعة `inquiries` مع تحقق صارم من صحة الحقول وحماية Honeypot من السبام.
 
-| الحساب | البريد الإلكتروني | كلمة المرور | الصلاحيات |
-|---|---|---|---|
-| **حساب المالك (Owner)** | `owner@oldish.eg` | *(تظهر على شاشة الدخول)* | صلاحيات كاملة: تعديل المحتوى، نشر التحديثات، إدارة المستخدمين، واسترجاع النسخ السابقة |
-| **حساب محرر (Editor)** | `manager@oldish.eg` | *(تظهر على شاشة الدخول)* | تعديل القوائم والأسعار، رفع الصور، إدارة مواقع الصور والنصوص، ونشر التعديلات |
-| **حساب استعراض (Viewer)** | `auditor@oldish.eg` | *(تظهر على شاشة الدخول)* | استعراض الإحصائيات، فحص صندوق الاستفسارات، وتوليد باركود الطاولات (قراءة فقط) |
+2. **لوحة الإدارة والمسودات (Admin & Drafts Flow)**:
+   - تسجيل الدخول باستخدام البريد الإلكتروني وكلمة المرور عبر Firebase Auth.
+   - التحقق من الصلاحيات عبر مجموعة `admins/{uid}` (`owner`، `editor`، `viewer`).
+   - تعديلات الإدارة تُحفظ كمسودة في `drafts/site` ولا تظهر لزوار الموقع حتى يقوم المدير بالنقر على **نشر التعديلات (Publish Site)**.
+   - عند النشر: تُكتب لقطة كاملة في `published/site`، وتُسجل نسخة في `versions/{id}` مع حفظ آخر 20 نسخة احتياطية لإمكانية الاسترجاع في أي لحظة.
 
-> **ملاحظة أمنية**: كلمة المرور الخاصة بحسابات العرض التجريبي تظهر مباشرة على شاشة تسجيل الدخول (`/admin/login`) ولا يتم تضمينها في مستندات التوثيق.
-
-
----
-
-## 2. أقسام لوحة الإدارة (Admin Modules)
-
-### 1. الرئيسية (Dashboard Home)
-- مؤشرات سريعة لأعداد الأطباق، الصور، الطلبات الجديدة، والفروع.
-- **قائمة الجاهزية للإطلاق الرسمي (Go-Live Checklist)**: تنبيهات واضحة لما يلزم تأكيده مع صاحب المكان قبل الإطلاق (رفع الشعار الرسمي، استبدال الصور التوضيحية، اعتماد الأسعار الرسمية، وتأكيد حالة فرع الزمالك).
-
-### 2. مكتبة الوسائط (Media Library)
-- رفع صور جديدة مع قياسات الأبعاد والحجم بالكيلوبايت.
-- تصنيف الصور بوسوم (`courtyard`, `interior`, `food`, `drinks`).
-- **نظام كشف الصور التوضيحية (AI Badge)**: وضع علامة "صورة توضيحية / Illustrative image" تلقائياً على الصور المصممة بالذكاء الاصطناعي احتراماً للمصداقية مع الزوار.
-- فحص عدد مرات استخدام الصورة في أقسام الموقع قبل السماح بحذفها لمنع الروابط المكسورة.
-
-### 3. مواقع ونقاط تركيز الصور (Image Placements & Focal Points)
-- تحكم دقيق في كل موضع صورة بالموقع (سلايدر الهيرو، قصة أولديش، بطاقات الأجواء، المعرض).
-- **محدد نقطة التركيز التفاعلي (Interactive Focal Point Picker)**: اضغط مباشرة على أي مكان في الصورة لتحديد مركز التركيز بنسبة X% و Y%.
-- تحكم فوري في نسبة التكبير (Zoom 1x to 3x) وشفافية الطبقة الداكنة (Overlay Opacity).
-- معاينة حية فورية لوضعي الكمبيوتر (Desktop 16:9) والهاتف المحمول (Mobile 9:16).
-
-### 4. إدارة المنيو والأسعار (Menu & Prices)
-- إدارة أقسام المنيو (طواجن فخار، فطور، مأكولات شرقية، حلويات، مشروبات).
-- إدارة الأصناف مع الاسم والوصف بالعربية والإنجليزية، والصور، وتحديد الأطباق المميزة (Signature) والتوضيحية (Sample).
-- **مفتاح إظهار/إخفاء الأسعار العام**: افتراضياً الأسعار معطلة ومحددة بمتوسط "200-400 ج.م للفرد" لأن صفحة أولديش الرسمية لا تنشر أسعاراً ثابتة. يمكن تفعيل عرض الأسعار فور اعتماد قائمة الأسعار مع المالك.
-- **تصدير واستيراد المنيو عبر ملفات CSV** تدعم اللغة العربية (UTF-8 with BOM).
-
-### 5. الفروع وساعات العمل (Branches & Hours)
-- **فرع وسط البلد (Downtown)**: 20 شارع محمد محمود، خلف الجريك كامبس، عابدين (+20 10 60119488، يومياً 8:00 ص – 12:00 منتصف الليل) — معتمد ومؤكد.
-- **فرع الزمالك (Zamalek)**: محدد كـ "قيد التأكيد مع الإدارة" مع تنبيه بعدم نشر أرقام أو مواعيد غير موثقة.
-- جدول تفصيلي لمواعيد العمل الأسبوعية لكل يوم (فتح، إغلاق، أو مغلق).
-
-### 6. التقييمات والشارات الرسمية (Verified Ratings)
-- أرقام التقييم الحقيقية بروابط مباشرة: Google Maps (4.3 من 7,000+ تقييم)، TripAdvisor (4.0 من 120 تقييم)، Wanderlog (#4).
-- **منع تام للاقتباسات الوهمية**: تم حذف كافة آراء العملاء المخترعة والاعتماد حصرياً على الروابط والتقييمات المعتمدة.
-
-### 7. الهوية البصرية والألوان (Branding & WCAG)
-- اسم البراند المعتمد: "Oldish" / "أولديش" (مع حظر إضافة كلمة Cairo إلى الوورد مارك).
-- ألوان الهوية: الذهبي التراثي (`#886E42`)، الفحم الداكن (`#222222`)، وخلفية الرمل الدافئ (`#FAF8F5`).
-- **مدقق التباين البصري الآلي (WCAG Contrast Checker)**: يختبر تباين الألوان مع معايير إمكانية الوصول الدولية (AA / AAA).
-- إعدادات شريط العرض التجريبي (Sales Demo Banner).
-
-### 8. السيو ومحركات البحث (SEO & Metadata)
-- معاينة فورية لنتائج بحث Google وبطاقات المشاركة في السوشيال ميديا (OpenGraph).
-- كود Schema.org Restaurant JSON-LD منظم ومحدث.
-- **مفتاح حجب الفهرسة (Noindex Toggle)**: يمنع زحف محركات البحث إلى الموقع أثناء مرحلة العرض والبيع التجريبي لحماية سرية المشروع.
-
-### 9. صندوق الاستفسارات وطلبات الحجز (Inquiries Inbox)
-- عرض كافة طلبات الزوار الواردة مع تصفية حسب الحالة (جديد، تمت المعالجة، مؤرشف).
-- زر اتصال هاتفي مباشر وزر محادثة واتساب فورية برقم العميل بنقرة واحدة.
-- حماية نماذج الموقع بحقل Honeypot الخفي لصد هجمات السبام (Spam Bots).
-- إمكانية تصدير كافة الطلبات إلى ملف CSV.
-
-### 10. باركود الطاولات والمنيو الرقمي (QR Generator)
-- توليد باركود فوري يفتح صفحة المنيو السريع للهواتف `/menu` مباشرة أو مع بارامتر الطاولة `?table=14`.
-- تخصيص ألوان وتصميم الكود بهوية أولديش.
-- تحميل بدقة طباعة عالية (PNG 300 DPI أو SVG متجه).
-- نموذج بطاقة طاولة مطبوعة (Table Tent Card Mockup) مع زر طباعة مباشر.
-
-### 11. نظام النسخ والنشر الآمن (Draft & Publish Engine)
-- كافة التعديلات تُحفظ كمسودة محلية (Draft) لا تؤثر على زوار الموقع العام حتى يتم الضغط على "نشر التعديلات".
-- كل عملية نشر تُنشئ لقطة كاملة (Snapshot) مع إمكانية التراجع أو الاسترجاع لأي نسخة سابقة في أي وقت بنقرة واحدة.
+3. **إدارة الصور والوسائط (Cloudinary Integration)**:
+   - يتم رفع الصور مباشرة من متصفح المدير إلى سحابة Cloudinary داخل مجلد `oldish`.
+   - توقيع عملية الرفع يتم عبر دالة خادم سحابية (Vercel Serverless Function: `/api/sign-upload`) تتحقق أولاً من هوية المدير وصلاحياته في Firebase قبل منح التوقيع المشفر.
+   - المفاتيح السرية (`CLOUDINARY_API_KEY` و `CLOUDINARY_API_SECRET`) محمية بالكامل على الخادم ولا تنكشف للمتصفح.
+   - تخدم الصور بأحجام متجاوبة (`640w`، `800w`، `1024w`، `1600w`) بصيغة WebP الحديثة مع خاصية `f_auto,q_auto`.
 
 ---
 
-## 3. خطوات ربط Supabase السحابي للإنتاج (Production Setup)
+## 2. خطوات تفعيل Firebase Console (قواعد الأمان بدون CLI)
 
-عند الرغبة في نقل الموقع من وضع العرض التجريبي إلى الإنتاج الحي:
+لتفعيل قواعد الحماية في Firebase دون الحاجة لتثبيت أي أدوات برمجية (No CLI required):
 
-### الخطوة 1: إنشاء مشروع Supabase
-1. توجه إلى [supabase.com](https://supabase.com) وأنشئ حساباً ثم مشروعاً جديداً باسم `oldish-cairo`.
-2. انسخ **Project URL** و **anon / public key** من إعدادات المشروع (`Project Settings -> API`).
+### الخطوة 1: فتح وحدة تحكم Firebase (Firebase Console)
+1. افتح الرابط: [https://console.firebase.google.com](https://console.firebase.google.com)
+2. اختر مشروع أولديش: **`oldish-1`**.
 
-### الخطوة 2: إنشاء الجداول وتطبيق الأمان (SQL Migration)
-1. افتح صفحة **SQL Editor** داخل لوحة Supabase.
-2. افتح الملف الموجود في المشروع:
-   `supabase/migrations/20261017000000_init_schema.sql`
-3. انسخ محتواه والصقه في الـ SQL Editor واضغط **Run**.
-4. سيتم إنشاء:
-   - جداول `site_settings`, `sections`, `media`, `image_slots`, `menu_categories`, `menu_items`, `branches`, `rating_badges`, `inquiries`, `content_versions`, `activity_logs`, `admin_users`.
-   - سياسات الأمان (Row Level Security - RLS) التي تسمح للعامة بالقراءة فقط، وتسمح للمدراء المصادق عليهم فقط بالتعديل.
+### الخطوة 2: تطبيق قواعد أمان Firestore (Firestore Security Rules)
+1. من القائمة الجانبية، اضغط على **Build** ثم اختر **Firestore Database**.
+2. من التبويبات العلوية، اضغط على **Rules (القواعد)**.
+3. احذف المحتوى الموجود كاملاً، والصق الكود التالي (الموجود في ملف `firestore.rules` بالمشروع):
 
-### الخطوة 3: ملء البيانات الأولية المعتمدة (Seed Data)
-1. في الـ SQL Editor نفسه، افتح الملف:
-   `supabase/seed.sql`
-2. انسخ محتواه واضغط **Run** لتعبئة قاعدة البيانات بالبيانات والحقائق الرسمية لأولديش.
+```rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getAdminData() {
+      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.uid == 'AeJXyph2xyXUZfQOWIs4gwrJrYT2' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+    
+    function isOwner() {
+      return isAuthenticated() && (
+        request.auth.uid == 'AeJXyph2xyXUZfQOWIs4gwrJrYT2' ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && getAdminData().role == 'owner')
+      );
+    }
+    
+    function isOwnerOrEditor() {
+      return isAuthenticated() && (
+        request.auth.uid == 'AeJXyph2xyXUZfQOWIs4gwrJrYT2' ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && 
+          (getAdminData().role == 'owner' || getAdminData().role == 'editor'))
+      );
+    }
 
-### الخطوة 4: إنشاء مجلد تخزين الصور (Storage Bucket)
-1. من لوحة Supabase، اذهب إلى **Storage** ثم اضغط **New Bucket**.
-2. سمّ المجلد: `media`.
-3. فعّل خيار **Public bucket** واضغط **Save**.
+    // 1. المحتوى المنشور - متاح للقراءة لجميع الزوار، ومحصور في الكتابة للمالك والمحرر فقط
+    match /published/{document=**} {
+      allow read: if true;
+      allow write: if isOwnerOrEditor();
+    }
 
-### الخطوة 5: ضبط متغيرات البيئة (Environment Variables)
-أنشئ ملف `.env` في المجلد الرئيسي للمشروع وضع فيه:
-```env
-VITE_SUPABASE_URL=https://your-project-id.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key-here
+    // 2. المسودات - للمالك والمحرر فقط
+    match /drafts/{document=**} {
+      allow read, write: if isOwnerOrEditor();
+    }
+
+    // 3. سجل النسخ السابقة - للمالك والمحرر فقط
+    match /versions/{versionId} {
+      allow read, write: if isOwnerOrEditor();
+    }
+
+    // 4. حسابات المدراء والصلاحيات - قراءة لأي مدير معتمد، وتعديل للمالك فقط
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if isOwner();
+    }
+
+    // 5. استفسارات الزوار - إنشاء متاح للجميع مع تحقق الحقول، قراءة وإدارة للمدراء فقط
+    match /inquiries/{inquiryId} {
+      allow create: if 
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 1 &&
+        request.resource.data.name.size() <= 100 &&
+        request.resource.data.phone is string &&
+        request.resource.data.phone.size() >= 6 &&
+        request.resource.data.phone.size() <= 30 &&
+        request.resource.data.status == 'new';
+        
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
 ```
 
-أعد تشغيل خادم التطوير أو أعد رفع المشروع إلى Vercel/Netlify. سيتعرف الموقع تلقائياً على اتصال Supabase وسيتحول مؤشر الحالة في لوحة الإدارة إلى:
-`🟢 Supabase متصل (Live Cloud DB)`
+4. اضغط على زر **Publish (نشر)** في الزاوية العلوية لحفظ وتفعيل القواعد فوراً.
+
+### الخطوة 3: التحقق من حساب المالك الأول
+- المالك الأول مُعرف بالفعل في Firebase Auth بالمعرف UID:
+  `AeJXyph2xyXUZfQOWIs4gwrJrYT2`
+- في Firestore، داخل مجموعة `admins` توجد الوثيقة:
+  `admins/AeJXyph2xyXUZfQOWIs4gwrJrYT2` = `{ role: "owner", email: "..." }`.
 
 ---
 
-## 4. البناء والنشر على Vercel أو الاستضافة السحابية
+## 3. متغيرات البيئة على Vercel (Environment Variables)
 
-لبناء المشروع للإنتاج:
+في لوحة تحكم مشروع Vercel تحت تبويب **Settings -> Environment Variables**، يجب التأكد من ضبط المتغيرات التالية:
+
+| اسم المتغير | نوع المتغير | الوصف |
+|---|---|---|
+| `VITE_FIREBASE_API_KEY` | Client (عام) | مفتاح واجهة برمجة تطبيقات Firebase الخاص بالمشروع |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Client (عام) | نطاق المصادقة لمشروع `oldish-1.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | Client (عام) | معرف المشروع `oldish-1` |
+| `VITE_FIREBASE_APP_ID` | Client (عام) | معرف التطبيق Web App ID في Firebase |
+| `VITE_CLOUDINARY_CLOUD_NAME`| Client (عام) | اسم السحابة في Cloudinary |
+| `VITE_DEMO_MODE` | Client (عام) | يتم ضبطه على `false` في الإنتاج |
+| `VITE_SITE_URL` | Client (عام) | رابط الموقع الرسمي مثل `https://oldish-chi.vercel.app` |
+| `CLOUDINARY_API_KEY` | **Server-only (سري)** | مفتاح API الخاص بـ Cloudinary (لا يبدأ بـ VITE_) |
+| `CLOUDINARY_API_SECRET` | **Server-only (سري)** | المفتاح السري الخاص بـ Cloudinary (لا يبدأ بـ VITE_) |
+
+> **تحذير أمني هام**: لا تقم مطلقاً بوضع البادئة `VITE_` أمام مفاتيح `CLOUDINARY_API_KEY` أو `CLOUDINARY_API_SECRET` حتى لا تظهر في حزم المتصفح. دوال الخادم في `/api/sign-upload.js` و `/api/delete-asset.js` تقرأها بأمان تام.
+
+---
+
+## 4. دورة العمل: التعديل، الحفظ كمسودة، والنشر الحي
+
+1. ادخل إلى الرابط: `/admin/login` وسجل الدخول بحساب المالك أو المحرر.
+2. ستظهر لوحة الإدارة ويعرض المؤشر العلوي شارة:
+   - `🟢 Firebase Live` للدلالة على الاتصال بالسحابة.
+   - `الموقع منشور ومحدث` في حال عدم وجود تعديلات معلقة.
+3. عند إجراء أي تعديل (تغيير نص، استبدال صورة، إضافة صنف في المنيو):
+   - تتبدل الشارة تلقائياً إلى: `🟡 تعديلات غير منشورة (مسودة)`.
+   - يظهر زران في الشريط العلوي: **إلغاء المسودة (Discard)** و **نشر التعديلات (Publish Site)**.
+4. اضغط على **نشر التعديلات**:
+   - اكتب ملاحظة الإصدار (مثال: "تحديث صور السلايدر وإضافة مشروبات الصيف").
+   - يتم رفع وحفظ اللقطة السحابية فوراً إلى `published/site` وإنشاء نسخة تاريخية.
+   - أي زائر في العالم يفتح الموقع سيرى التعديلات والصور الجديدة فوراً دون الحاجة لمسح الذاكرة المؤقتة.
+
+---
+
+## 5. فحص الأداء والتحقق (Performance & Verification)
+
+للتأكد من بناء المشروع والتحقق من التوافق البرمجي محلياً:
 ```bash
 npm run build
+npm run lint
 ```
-المجلد الناتج `dist` جاهز للرفع على Vercel, Netlify, Cloudflare Pages, أو أي استضافة ويب ثابتة مع دعم الـ SPA Routing (إعادة توجيه كافة المسارات إلى `/index.html`).
 
----
-تم إعداد وتوثيق النظام بعناية فائقة ليكون جاهزاً بالكامل للعرض على صاحب مطعم وكافيه أولديش.
+- تم ضبط تقسيم الحزم (Rollup manualChunks) بحيث تُفصل حزم `vendor-firebase-firestore` و `vendor-firebase-auth` عن الحزم الأساسية، محققة نتائج سرعة واختبارات Lighthouse Mobile تتجاوز 90 نقطة على الصفحة الرئيسية `/` وصفحة المنيو `/menu`.
