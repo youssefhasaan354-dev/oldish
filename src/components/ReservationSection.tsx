@@ -193,7 +193,7 @@ export const ReservationSection: React.FC = () => {
                   className="btn btn-outline-gold btn-sm"
                   onClick={() => setIsSubmitted(false)}
                 >
-                  {isRTL ? 'إرسال طلب تجريبي آخر' : 'Submit Another Demo Request'}
+                  {isRTL ? 'إرسال طلب آخر' : 'Submit Another Request'}
                 </button>
               </div>
             </div>
@@ -335,7 +335,7 @@ export const ReservationSection: React.FC = () => {
                   style={{ minWidth: '220px' }}
                 >
                   <Send size={15} />
-                  <span>{isSubmitting ? (isRTL ? 'جارٍ الإرسال...' : 'Sending...') : (isRTL ? 'إرسال طلب الحجز (تجريبي)' : 'Send Reservation Request (Demo)')}</span>
+                  <span>{isSubmitting ? (isRTL ? 'جارٍ الإرسال...' : 'Sending...') : (isRTL ? 'إرسال طلب الحجز' : 'Send Reservation Request')}</span>
                 </button>
               </div>
             </form>

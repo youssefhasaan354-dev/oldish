@@ -140,9 +140,6 @@ export interface SiteSettings {
   google_maps_url: string;
   elmenus_url?: string;
   show_prices: boolean; // default: false until owner confirms
-  demo_banner_enabled: boolean;
-  demo_banner_text_en: string;
-  demo_banner_text_ar: string;
   noindex: boolean; // default: true for sales demo
   site_domain: string;
   primary_color: string; // #886E42

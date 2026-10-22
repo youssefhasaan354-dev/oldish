@@ -34,7 +34,8 @@ export const GalleryLightboxModal: React.FC<GalleryLightboxModalProps> = ({
           type="button"
           className="lightbox-btn close"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={isRTL ? 'إغلاق' : 'Close'}
+          style={{ minWidth: '44px', minHeight: '44px' }}
         >
           <X size={24} />
         </button>
@@ -42,10 +43,11 @@ export const GalleryLightboxModal: React.FC<GalleryLightboxModalProps> = ({
         <button
           type="button"
           className="lightbox-btn prev"
-          onClick={isRTL ? onNext : onPrev}
-          aria-label="Previous"
+          onClick={onPrev}
+          aria-label={isRTL ? 'الصورة السابقة' : 'Previous Image'}
+          style={{ minWidth: '44px', minHeight: '44px' }}
         >
-          <ChevronLeft size={24} />
+          {isRTL ? <ChevronRight size={24} /> : <ChevronLeft size={24} />}
         </button>
 
         <img
@@ -59,10 +61,11 @@ export const GalleryLightboxModal: React.FC<GalleryLightboxModalProps> = ({
         <button
           type="button"
           className="lightbox-btn next"
-          onClick={isRTL ? onPrev : onNext}
-          aria-label="Next"
+          onClick={onNext}
+          aria-label={isRTL ? 'الصورة التالية' : 'Next Image'}
+          style={{ minWidth: '44px', minHeight: '44px' }}
         >
-          <ChevronRight size={24} />
+          {isRTL ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
         </button>
 
         <div className="lightbox-caption-bar">

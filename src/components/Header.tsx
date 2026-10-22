@@ -35,6 +35,17 @@ export const Header: React.FC<HeaderProps> = ({ activeSection }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [mobileMenuOpen]);
 
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
   const visibleSections = sections.filter(s => s.visible).sort((a, b) => a.sort_order - b.sort_order);
 
   const handleNavClick = (sectionKey: string) => {
@@ -156,12 +167,6 @@ export const Header: React.FC<HeaderProps> = ({ activeSection }) => {
         id="mobile-navigation"
         className={`mobile-drawer ${mobileMenuOpen ? 'open' : ''}`}
         aria-hidden={!mobileMenuOpen}
-        style={{
-          transform: mobileMenuOpen 
-            ? 'translateX(0)' 
-            : isRTL ? 'translateX(-100%)' : 'translateX(100%)',
-          transition: 'transform var(--transition-standard)'
-        }}
       >
         <div className="mobile-drawer-header">
           <div className="brand-wordmark-box">
@@ -198,15 +203,7 @@ export const Header: React.FC<HeaderProps> = ({ activeSection }) => {
             onClick={() => setMobileMenuOpen(false)}
           >
             <ExternalLink size={16} style={{ display: 'inline', marginInlineEnd: '6px' }} />
-            <span>{isRTL ? 'عرض المنيو الرقمي (/menu)' : 'Digital Menu View (/menu)'}</span>
-          </Link>
-          <Link 
-            to="/admin" 
-            className="mobile-nav-link"
-            onClick={() => setMobileMenuOpen(false)}
-            style={{ color: 'var(--color-gold)' }}
-          >
-            <span>{isRTL ? 'لوحة التحكم (/admin)' : 'Admin Dashboard (/admin)'}</span>
+            <span>{isRTL ? 'قائمة الطعام الرقمية' : 'Digital Menu'}</span>
           </Link>
         </nav>
 
@@ -229,6 +226,23 @@ export const Header: React.FC<HeaderProps> = ({ activeSection }) => {
             <Globe size={16} />
             <span>{language === 'en' ? 'التحويل إلى العربية' : 'Switch to English'}</span>
           </button>
+
+          <Link 
+            to="/admin" 
+            onClick={() => setMobileMenuOpen(false)}
+            style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '6px', 
+              fontSize: '0.75rem', 
+              color: 'rgba(255, 255, 255, 0.45)', 
+              textDecoration: 'none',
+              paddingTop: '6px'
+            }}
+          >
+            <span>{isRTL ? 'إدارة الموقع' : 'Portal'}</span>
+          </Link>
         </div>
       </aside>
     </>

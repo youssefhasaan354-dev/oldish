@@ -98,9 +98,6 @@ export const Hero: React.FC = () => {
       {/* Atmospheric Vignette Overlay */}
       <div 
         className="hero-overlay" 
-        style={{
-          opacity: activeSlideData.slot?.overlay_opacity ? activeSlideData.slot.overlay_opacity : undefined
-        }}
         aria-hidden="true" 
       />
 
@@ -108,8 +105,8 @@ export const Hero: React.FC = () => {
       <div className="hero-content">
         {/* Eyebrow Badge */}
         <div className="hero-badge-wrap">
-          <span className="badge badge-gold">
-            <MapPin size={13} />
+          <span className="badge hero-chip">
+            <MapPin size={14} />
             <span>
               {isRTL 
                 ? 'شارع محمد محمود • خلف الجريك كامبس (وسط البلد)' 
@@ -118,7 +115,7 @@ export const Hero: React.FC = () => {
           </span>
         </div>
 
-        <p className="section-eyebrow" style={{ color: 'var(--color-gold-light)' }}>
+        <p className="hero-eyebrow">
           {isRTL ? siteSettings.subline_ar : siteSettings.subline_en}
         </p>
 
@@ -134,14 +131,14 @@ export const Hero: React.FC = () => {
         </p>
 
         {/* Real Amenities & Facebook Category Tag */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
-          <span className="badge badge-gold">
+        <div className="hero-chips-wrap">
+          <span className="badge hero-chip">
             {isRTL ? 'مطعم · مقهى · حديقة' : 'Restaurant · Café · Garden'}
           </span>
-          <span className="badge badge-gold">
+          <span className="badge hero-chip">
             {isRTL ? 'أكثر من ١٦٥ ألف متابع على فيسبوك' : '~165K Facebook Community'}
           </span>
-          <span className="badge badge-gold">
+          <span className="badge hero-chip">
             {isRTL ? 'جلسات داخلية وخارجية • واي فاي' : 'Indoor & Outdoor • Wi-Fi'}
           </span>
         </div>
@@ -182,7 +179,6 @@ export const Hero: React.FC = () => {
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-outline-light"
-              style={{ borderColor: 'rgba(255, 255, 255, 0.3)' }}
             >
               <ShoppingBag size={16} />
               <span>{isRTL ? 'طلب دليفري (elmenus)' : 'Order Delivery'}</span>
@@ -191,25 +187,12 @@ export const Hero: React.FC = () => {
         </div>
 
         {/* Hours & Operating Info */}
-        <div 
-          style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            fontSize: '0.8125rem', 
-            color: '#D4CFC7',
-            background: 'rgba(0, 0, 0, 0.55)',
-            padding: '6px 16px',
-            borderRadius: '20px',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            marginBottom: '18px'
-          }}
-        >
-          <Clock size={14} style={{ color: 'var(--color-gold)' }} />
+        <div className="hero-hours-pill">
+          <Clock size={15} />
           <span>
             {isRTL ? 'يومياً: 8:00 صباحاً – 12:00 منتصف الليل' : 'Every day: 8:00 AM – 12:00 AM (Midnight)'}
           </span>
-          <span style={{ opacity: 0.5 }}>|</span>
+          <span className="pill-divider" aria-hidden="true">|</span>
           <span>
             {isRTL ? 'متوسط الفرد: 200–400 ج.م' : 'Approx. EGP 200–400 / person'}
           </span>
@@ -218,15 +201,7 @@ export const Hero: React.FC = () => {
         {/* Illustrative AI Image Notice for Current Hero Slide */}
         {activeSlideData.isAi && (
           <div style={{ marginBottom: '14px' }}>
-            <span 
-              className="badge" 
-              style={{ 
-                background: 'rgba(0, 0, 0, 0.6)', 
-                color: '#D0CBC2', 
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                fontSize: '0.7rem' 
-              }}
-            >
+            <span className="badge hero-chip" style={{ fontSize: '0.7rem' }}>
               {isRTL ? 'صورة توضيحية' : 'Illustrative image'}
             </span>
           </div>
@@ -237,10 +212,10 @@ export const Hero: React.FC = () => {
           <button 
             type="button"
             onClick={handlePrev}
-            style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '10px', minWidth: '40px', minHeight: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-            aria-label="Previous Slide"
+            className="hero-slide-btn"
+            aria-label={isRTL ? 'الشريحة السابقة' : 'Previous Slide'}
           >
-            <ChevronLeft size={20} />
+            {isRTL ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
 
           {slides.map((_, idx) => (
@@ -250,19 +225,18 @@ export const Hero: React.FC = () => {
               role="tab"
               className={`slide-dot ${idx === currentSlide ? 'active' : ''}`}
               onClick={() => setCurrentSlide(idx)}
-              aria-label={`Slide ${idx + 1}`}
+              aria-label={isRTL ? `الشريحة ${idx + 1}` : `Slide ${idx + 1}`}
               aria-selected={idx === currentSlide}
-              style={{ minWidth: '28px', minHeight: '28px', padding: '8px' }}
             />
           ))}
 
           <button 
             type="button"
             onClick={handleNext}
-            style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '10px', minWidth: '40px', minHeight: '40px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-            aria-label="Next Slide"
+            className="hero-slide-btn"
+            aria-label={isRTL ? 'الشريحة التالية' : 'Next Slide'}
           >
-            <ChevronRight size={20} />
+            {isRTL ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
           </button>
         </div>
       </div>

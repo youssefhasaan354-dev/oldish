@@ -768,46 +768,6 @@ export const AdminBrandingManager: React.FC = () => {
           </div>
         </div>
 
-        {/* Demo Banner Settings */}
-        <div className="admin-card" style={{ marginBottom: '24px' }}>
-          <div className="admin-card-header">
-            <h3 style={{ margin: 0, fontSize: '1.125rem' }}>شريط التنبيه التجريبي للعميل (Sales Demo Banner)</h3>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={form.demo_banner_enabled}
-                disabled={isReadOnly}
-                onChange={(e) => setForm({ ...form, demo_banner_enabled: e.target.checked })}
-              />
-              <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>تفعيل شريط العرض التجريبي</span>
-            </label>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div className="form-group">
-              <label className="form-label">نص التنبيه بالعربية</label>
-              <textarea
-                rows={2}
-                className="form-input"
-                disabled={isReadOnly}
-                value={form.demo_banner_text_ar}
-                onChange={(e) => setForm({ ...form, demo_banner_text_ar: e.target.value })}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Demo Banner Text (English)</label>
-              <textarea
-                rows={2}
-                className="form-input"
-                dir="ltr"
-                disabled={isReadOnly}
-                value={form.demo_banner_text_en}
-                onChange={(e) => setForm({ ...form, demo_banner_text_en: e.target.value })}
-              />
-            </div>
-          </div>
-        </div>
 
         {/* RESET DEMO DATA (Part A #9 - Owner only) */}
         {isOwner && (

@@ -142,19 +142,6 @@ export const MenuSection: React.FC = () => {
                       <h3 className="menu-dish-title">
                         {isRTL ? item.name_ar : item.name_en}
                       </h3>
-                      {item.is_sample && (
-                        <span 
-                          style={{ 
-                            fontSize: '0.75rem', 
-                            color: '#9E4738', 
-                            display: 'inline-block', 
-                            marginTop: '2px',
-                            fontWeight: 600
-                          }}
-                        >
-                          {isRTL ? '(صنف تجريبي - رهن تأكيد المالك)' : '(Sample item - pending owner menu)'}
-                        </span>
-                      )}
                     </div>
 
                     {/* Price display: Only shown if show_prices is active and price exists */}

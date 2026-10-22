@@ -288,12 +288,6 @@ export const PublicMenuPage: React.FC = () => {
                           </span>
                         )}
                       </div>
-
-                      {item.is_sample && (
-                        <span style={{ fontSize: '0.6875rem', color: '#9E4738', fontWeight: 600 }}>
-                          {isRTL ? '(صنف تجريبي)' : '(Sample item)'}
-                        </span>
-                      )}
                     </div>
 
                     {siteSettings.show_prices && item.price ? (
