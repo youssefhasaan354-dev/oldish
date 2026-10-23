@@ -3,6 +3,16 @@ import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
 import { Phone, Calendar, Clock, Users, User, Mail, CheckCircle, AlertTriangle, Send, MessageCircle } from 'lucide-react';
 
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: string | HTMLElement, options: Record<string, unknown>) => string;
+      reset: (widgetId?: string) => void;
+      remove: (widgetId?: string) => void;
+    };
+  }
+}
+
 export const ReservationSection: React.FC = () => {
   const { isRTL } = useLanguage();
   const { siteSettings, submitInquiry, sections } = useData();
@@ -22,6 +32,71 @@ export const ReservationSection: React.FC = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+
+  // Minimum fill time protection (3s minimum)
+  const formRenderTime = React.useRef<number | null>(null);
+  const turnstileWidgetId = React.useRef<string | null>(null);
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+
+  React.useEffect(() => {
+    formRenderTime.current = Date.now();
+  }, []);
+
+  // Render Turnstile if site key is configured
+  React.useEffect(() => {
+    if (!turnstileSiteKey) return;
+
+    let isMounted = true;
+    const renderWidget = () => {
+      if (!isMounted || !window.turnstile) return;
+      const container = document.getElementById('cf-turnstile-container');
+      if (container && !turnstileWidgetId.current) {
+        try {
+          turnstileWidgetId.current = window.turnstile.render('#cf-turnstile-container', {
+            sitekey: turnstileSiteKey,
+            callback: (token: string) => {
+              if (isMounted) setTurnstileToken(token);
+            },
+            'error-callback': () => {
+              if (isMounted) setTurnstileToken(null);
+            },
+            'expired-callback': () => {
+              if (isMounted) setTurnstileToken(null);
+            }
+          });
+        } catch (e) {
+          console.warn('Turnstile render warning:', e);
+        }
+      }
+    };
+
+    if (window.turnstile) {
+      renderWidget();
+    } else {
+      const existingScript = document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]');
+      if (!existingScript) {
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        script.async = true;
+        script.defer = true;
+        script.onload = () => renderWidget();
+        document.head.appendChild(script);
+      } else {
+        existingScript.addEventListener('load', renderWidget);
+      }
+    }
+
+    return () => {
+      isMounted = false;
+      if (window.turnstile && turnstileWidgetId.current) {
+        try {
+          window.turnstile.remove(turnstileWidgetId.current);
+        } catch {}
+        turnstileWidgetId.current = null;
+      }
+    };
+  }, [turnstileSiteKey]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,9 +113,58 @@ export const ReservationSection: React.FC = () => {
       return;
     }
 
+    // Minimum fill time check (at least 3 seconds)
+    const elapsedSeconds = formRenderTime.current ? (Date.now() - formRenderTime.current) / 1000 : 999;
+    if (elapsedSeconds < 3) {
+      setSubmitError(
+        isRTL 
+          ? 'يرجى التمهل لحظات قبل إرسال النموذج.' 
+          : 'Please take a moment before submitting.'
+      );
+      return;
+    }
+
+    // Honeypot check: silently accept to fool bots without writing to Firestore
+    if (form.honeypot && form.honeypot.trim().length > 0) {
+      setIsSubmitted(true);
+      return;
+    }
+
     setErrors({});
     setSubmitError(null);
     setIsSubmitting(true);
+
+    // Optional Turnstile server-side verification if site key is configured
+    if (turnstileSiteKey) {
+      if (!turnstileToken) {
+        setIsSubmitting(false);
+        setSubmitError(
+          isRTL 
+            ? 'يرجى التحقق الأمني من كلاودفلير (Turnstile) للمتابعة.' 
+            : 'Please complete the Cloudflare security verification.'
+        );
+        return;
+      }
+
+      try {
+        const verifyRes = await fetch('/api/verify-turnstile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: turnstileToken })
+        });
+        if (!verifyRes.ok) {
+          setIsSubmitting(false);
+          setSubmitError(
+            isRTL 
+              ? 'فشل التحقق الأمني. يرجى المحاولة مجدداً أو الاتصال بنا مباشرة.' 
+              : 'Security verification failed. Please try again or call us directly.'
+          );
+          return;
+        }
+      } catch (err) {
+        console.warn('Turnstile verify error:', err);
+      }
+    }
 
     const res = await submitInquiry({
       type: 'reservation_request',
@@ -203,7 +327,10 @@ export const ReservationSection: React.FC = () => {
                 <button
                   type="button"
                   className="btn btn-outline-gold btn-sm"
-                  onClick={() => setIsSubmitted(false)}
+                  onClick={() => {
+                    setIsSubmitted(false);
+                    formRenderTime.current = Date.now();
+                  }}
                 >
                   {isRTL ? 'إرسال طلب آخر' : 'Send another request'}
                 </button>
@@ -390,6 +517,13 @@ export const ReservationSection: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {turnstileSiteKey && (
+                <div 
+                  id="cf-turnstile-container" 
+                  style={{ display: 'flex', justifyContent: 'center', marginTop: '16px', minHeight: '65px' }} 
+                />
+              )}
 
               <div style={{ marginTop: '20px', textAlign: 'center' }}>
                 <button

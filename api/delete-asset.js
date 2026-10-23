@@ -50,22 +50,22 @@ export default async function handler(req, res) {
   }
 
   let role = null;
-  const KNOWN_OWNER_UID = 'AeJXyph2xyXUZfQOWIs4gwrJrYT2';
-  if (uid === KNOWN_OWNER_UID) {
-    role = 'owner';
-  } else {
-    try {
-      const fsRes = await fetch(
-        `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/(default)/documents/admins/${uid}`,
-        {
-          headers: { 'Authorization': `Bearer ${idToken}` }
-        }
-      );
-      if (fsRes.ok) {
-        const doc = await fsRes.json();
-        role = doc.fields?.role?.stringValue;
+  const configuredOwnerUid = process.env.OWNER_UID || 'AeJXyph2xyXUZfQOWIs4gwrJrYT2';
+  try {
+    const fsRes = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/(default)/documents/admins/${uid}`,
+      {
+        headers: { 'Authorization': `Bearer ${idToken}` }
       }
-    } catch {}
+    );
+    if (fsRes.ok) {
+      const doc = await fsRes.json();
+      role = doc.fields?.role?.stringValue;
+    }
+  } catch {}
+
+  if (!role && uid === configuredOwnerUid) {
+    role = 'owner';
   }
 
   if (role !== 'owner' && role !== 'editor') {

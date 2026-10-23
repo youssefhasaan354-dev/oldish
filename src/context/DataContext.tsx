@@ -364,6 +364,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setHasUnsavedDraft(true);
           }
         }
+
+        // 3. Flush inquiry retry queue if online and firebase is active
+        if (isFirebaseActive) {
+          try {
+            const rawRetry = localStorage.getItem(STORAGE_KEY_INQUIRIES_RETRY);
+            if (rawRetry) {
+              const queue: Inquiry[] = JSON.parse(rawRetry);
+              if (Array.isArray(queue) && queue.length > 0) {
+                const remaining: Inquiry[] = [];
+                const flushed: Inquiry[] = [];
+                for (const item of queue) {
+                  try {
+                    await submitInquiryToFirestore(item);
+                    flushed.push(item);
+                  } catch {
+                    remaining.push(item);
+                  }
+                }
+                if (remaining.length > 0) {
+                  localStorage.setItem(STORAGE_KEY_INQUIRIES_RETRY, JSON.stringify(remaining));
+                } else {
+                  localStorage.removeItem(STORAGE_KEY_INQUIRIES_RETRY);
+                }
+                if (flushed.length > 0 && isMounted) {
+                  setInquiries(prev => {
+                    const existingIds = new Set(prev.map(i => i.id));
+                    const newItems = flushed.filter(i => !existingIds.has(i.id));
+                    const updated = [...newItems, ...prev];
+                    localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
+                    return updated;
+                  });
+                }
+              }
+            }
+          } catch (retryErr) {
+            console.warn('Inquiry retry queue flush note:', retryErr);
+          }
+        }
       } catch (err) {
         console.error('Error in loadData:', err);
       } finally {
@@ -373,8 +411,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     loadData();
 
+    const handleOnline = () => {
+      if (isFirebaseActive) {
+        loadData();
+      }
+    };
+    window.addEventListener('online', handleOnline);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('online', handleOnline);
     };
   }, [isFirebaseActive, isAuthenticated, applySnapshotToState]);
 

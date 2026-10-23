@@ -1,5 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -14,6 +16,34 @@ export default defineConfig(({ mode }) => {
         name: 'html-transform',
         transformIndexHtml(html) {
           return html.replace(/%VITE_SITE_URL%/g, siteUrl);
+        }
+      },
+      {
+        name: 'generate-sitemap',
+        closeBundle() {
+          const sitemapContent = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${siteUrl}/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${siteUrl}/menu</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>
+`;
+          try {
+            const distPath = path.resolve(process.cwd(), 'dist');
+            if (fs.existsSync(distPath)) {
+              fs.writeFileSync(path.join(distPath, 'sitemap.xml'), sitemapContent, 'utf-8');
+            }
+            fs.writeFileSync(path.resolve(process.cwd(), 'public/sitemap.xml'), sitemapContent, 'utf-8');
+          } catch (e) {
+            console.warn('Sitemap generation warning:', e);
+          }
         }
       }
     ],

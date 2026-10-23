@@ -43,26 +43,26 @@ export default async function handler(req, res) {
 
   // 4. Verify admin role in Firestore
   let role = null;
-  const KNOWN_OWNER_UID = 'AeJXyph2xyXUZfQOWIs4gwrJrYT2';
-  if (uid === KNOWN_OWNER_UID) {
-    role = 'owner';
-  } else {
-    try {
-      const fsRes = await fetch(
-        `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/(default)/documents/admins/${uid}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${idToken}`
-          }
+  const configuredOwnerUid = process.env.OWNER_UID || 'AeJXyph2xyXUZfQOWIs4gwrJrYT2';
+  try {
+    const fsRes = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/(default)/documents/admins/${uid}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${idToken}`
         }
-      );
-      if (fsRes.ok) {
-        const doc = await fsRes.json();
-        role = doc.fields?.role?.stringValue;
       }
-    } catch (err) {
-      console.warn('Firestore admin check error:', err);
+    );
+    if (fsRes.ok) {
+      const doc = await fsRes.json();
+      role = doc.fields?.role?.stringValue;
     }
+  } catch (err) {
+    console.warn('Firestore admin check error:', err);
+  }
+
+  if (!role && uid === configuredOwnerUid) {
+    role = 'owner';
   }
 
   if (role !== 'owner' && role !== 'editor') {
