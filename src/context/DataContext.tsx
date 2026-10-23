@@ -116,6 +116,7 @@ interface DataContextType {
   discardDraft: () => void;
   resetAllDemoData: () => Promise<void>;
   submitInquiry: (data: Omit<Inquiry, 'id' | 'status' | 'created_at'>) => Promise<{ success: boolean; error?: string }>;
+  updateInquiryStatus: (id: string, status: Inquiry['status']) => void;
   markInquiryHandled: (id: string) => void;
   archiveInquiry: (id: string) => void;
   trackClick: (type: 'calls' | 'directions' | 'menu_views' | 'whatsapp_clicks' | 'reservation_requests') => void;
@@ -1186,6 +1187,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
           return updated;
         });
+
+        // Notify owner asynchronously via Telegram/Resend API
+        try {
+          fetch('/api/notify-inquiry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newInquiry)
+          }).catch(err => console.warn('Inquiry notify note:', err));
+        } catch {}
+
         return { success: true };
       } catch (dbErr: any) {
         console.error('Firestore inquiry insert failed:', dbErr);
@@ -1207,33 +1218,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
         return updated;
       });
+
+      // Also trigger notification in offline / local mode if endpoint available
+      try {
+        fetch('/api/notify-inquiry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newInquiry)
+        }).catch(() => {});
+      } catch {}
+
       return { success: true };
     }
   };
 
-  const markInquiryHandled = (id: string) => {
+  const updateInquiryStatus = (id: string, status: Inquiry['status']) => {
     setInquiries(prev => {
-      const updated = prev.map(inq => inq.id === id ? { ...inq, status: 'handled' as const } : inq);
+      const updated = prev.map(inq => inq.id === id ? { ...inq, status } : inq);
       localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
       return updated;
     });
     if (isFirebaseActive && isAuthenticated) {
-      updateInquiryInFirestore(id, { status: 'handled' }).catch(() => {});
+      updateInquiryInFirestore(id, { status }).catch(err => {
+        console.warn('Error updating inquiry in firestore:', err);
+      });
     }
-    logAction('Handled Inquiry', id);
+    logAction(`Update Inquiry Status (${status})`, id);
   };
 
-  const archiveInquiry = (id: string) => {
-    setInquiries(prev => {
-      const updated = prev.map(inq => inq.id === id ? { ...inq, status: 'archived' as const } : inq);
-      localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
-      return updated;
-    });
-    if (isFirebaseActive && isAuthenticated) {
-      updateInquiryInFirestore(id, { status: 'archived' }).catch(() => {});
-    }
-    logAction('Archive Inquiry', id);
-  };
+  const markInquiryHandled = (id: string) => updateInquiryStatus(id, 'handled');
+  const archiveInquiry = (id: string) => updateInquiryStatus(id, 'archived');
 
   return (
     <DataContext.Provider value={{
@@ -1283,6 +1297,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       discardDraft,
       resetAllDemoData,
       submitInquiry,
+      updateInquiryStatus,
       markInquiryHandled,
       archiveInquiry,
       trackClick

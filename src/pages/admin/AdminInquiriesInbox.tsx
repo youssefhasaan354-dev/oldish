@@ -6,6 +6,7 @@ import {
   MessageCircle, 
   CheckCircle2, 
   Archive, 
+  RotateCcw,
   Download, 
   Calendar, 
   Users, 
@@ -15,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export const AdminInquiriesInbox: React.FC = () => {
-  const { inquiries, markInquiryHandled, archiveInquiry } = useData();
+  const { inquiries, updateInquiryStatus, markInquiryHandled, archiveInquiry } = useData();
 
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -337,9 +338,23 @@ export const AdminInquiriesInbox: React.FC = () => {
 
                       {/* Status */}
                       <td>
-                        <span className={`status-pill ${inq.status === 'new' ? 'pending' : inq.status === 'handled' ? 'active' : 'inactive'}`}>
-                          {inq.status === 'new' ? 'جديد' : inq.status === 'handled' ? 'تمت المعالجة' : 'مؤرشف'}
-                        </span>
+                        <select
+                          value={inq.status}
+                          onChange={(e) => updateInquiryStatus(inq.id, e.target.value as 'new' | 'handled' | 'archived')}
+                          className={`status-pill ${inq.status === 'new' ? 'pending' : inq.status === 'handled' ? 'active' : 'inactive'}`}
+                          style={{
+                            cursor: 'pointer',
+                            outline: 'none',
+                            border: 'none',
+                            fontWeight: 600,
+                            fontFamily: 'inherit'
+                          }}
+                          title="تغيير الحالة فوراً"
+                        >
+                          <option value="new">جديد (New)</option>
+                          <option value="handled">تم الرد (Handled)</option>
+                          <option value="archived">مؤرشف (Archived)</option>
+                        </select>
                       </td>
 
                       {/* Actions */}
@@ -358,7 +373,7 @@ export const AdminInquiriesInbox: React.FC = () => {
                             </button>
                           )}
 
-                          {inq.status !== 'archived' && (
+                          {inq.status !== 'archived' ? (
                             <button
                               type="button"
                               className="btn-icon-subtle"
@@ -366,6 +381,15 @@ export const AdminInquiriesInbox: React.FC = () => {
                               title="أرشفة الطلب"
                             >
                               <Archive size={15} />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn-icon-subtle"
+                              onClick={() => updateInquiryStatus(inq.id, 'new')}
+                              title="إعادة كـ جديد"
+                            >
+                              <RotateCcw size={15} />
                             </button>
                           )}
                         </div>

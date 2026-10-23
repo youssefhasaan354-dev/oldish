@@ -198,6 +198,28 @@ export const ReservationSection: React.FC = () => {
     return null;
   }
 
+  const cleanWhatsapp = (siteSettings.whatsapp || siteSettings.phone || '201060119488').replace(/[^0-9]/g, '');
+
+  const getWhatsAppBookingUrl = () => {
+    const lines: string[] = [];
+    if (isRTL) {
+      lines.push('مرحباً أولديش، أود طلب حجز طاولة:');
+      if (form.name.trim()) lines.push(`• الاسم: ${form.name.trim()}`);
+      if (form.date) lines.push(`• التاريخ: ${form.date}`);
+      if (form.time) lines.push(`• الوقت: ${form.time}`);
+      if (form.guests) lines.push(`• عدد الأفراد: ${form.guests}`);
+      if (form.message.trim()) lines.push(`• ملاحظات: ${form.message.trim()}`);
+    } else {
+      lines.push('Hello Oldish, I would like to request a table reservation:');
+      if (form.name.trim()) lines.push(`• Name: ${form.name.trim()}`);
+      if (form.date) lines.push(`• Date: ${form.date}`);
+      if (form.time) lines.push(`• Time: ${form.time}`);
+      if (form.guests) lines.push(`• Guests: ${form.guests}`);
+      if (form.message.trim()) lines.push(`• Notes: ${form.message.trim()}`);
+    }
+    return `https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(lines.join('\n'))}`;
+  };
+
   return (
     <section id="reservations" className="section" aria-labelledby="reservations-heading">
       <div className="container">
@@ -525,7 +547,7 @@ export const ReservationSection: React.FC = () => {
                 />
               )}
 
-              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <button
                   type="submit"
                   disabled={isSubmitting}
@@ -535,6 +557,25 @@ export const ReservationSection: React.FC = () => {
                   <Send size={15} />
                   <span>{isSubmitting ? (isRTL ? 'جارٍ الإرسال...' : 'Sending...') : (isRTL ? 'إرسال طلب الحجز' : 'Send Reservation Request')}</span>
                 </button>
+
+                <a
+                  href={getWhatsAppBookingUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline-gold"
+                  style={{ 
+                    minWidth: '220px', 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '8px',
+                    borderColor: '#25D366',
+                    color: '#1b743b'
+                  }}
+                >
+                  <MessageCircle size={16} style={{ color: '#25D366' }} />
+                  <span>{isRTL ? 'احجز عبر واتساب' : 'Book via WhatsApp'}</span>
+                </a>
               </div>
             </form>
           )}
