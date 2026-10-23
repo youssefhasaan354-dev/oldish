@@ -22,7 +22,7 @@ import { DemoBanner } from '../components/DemoBanner';
 export const PublicMenuPage: React.FC = () => {
   useNoIndex();
   const { isRTL, language, toggleLanguage } = useLanguage();
-  const { menuCategories, menuItems, siteSettings, trackClick, isPreviewMode } = useData();
+  const { menuCategories, menuItems, siteSettings, trackClick, isPreviewMode, isLoading } = useData();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -297,7 +297,20 @@ export const PublicMenuPage: React.FC = () => {
       {/* Items List */}
       <h2 className="sr-only">{isRTL ? 'أصناف قائمة الطعام' : 'Menu Items List'}</h2>
       <div className="container menu-print-container" style={{ paddingBlock: '24px', maxWidth: '820px' }}>
-        {filteredItems.length === 0 ? (
+        {isLoading && menuItems.length === 0 ? (
+          <div className="menu-items-grid" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <div key={n} className="menu-item-card" style={{ background: '#FFFFFF', borderRadius: '6px', padding: '16px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <div className="skeleton-shimmer" style={{ width: '84px', height: '84px', borderRadius: '4px', flexShrink: 0 }} />
+                <div style={{ flexGrow: 1 }}>
+                  <div className="skeleton-shimmer" style={{ height: '20px', width: '50%', marginBottom: '10px' }} />
+                  <div className="skeleton-shimmer" style={{ height: '14px', width: '85%', marginBottom: '6px' }} />
+                  <div className="skeleton-shimmer" style={{ height: '14px', width: '30%' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredItems.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 10px', color: '#888' }}>
             {isRTL ? 'لا توجد أطباق مطابقة للبحث.' : 'No dishes found matching your criteria.'}
           </div>

@@ -69,6 +69,26 @@ const PublicLandingPage: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Scroll reveal animation observer (IntersectionObserver, CSS only transitions)
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const revealElements = document.querySelectorAll('.reveal-on-scroll');
+    if (!revealElements.length) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-revealed');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+
+    revealElements.forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="site-wrapper">
       <DemoBanner />
@@ -76,14 +96,14 @@ const PublicLandingPage: React.FC = () => {
       <Header activeSection={activeSection} />
       <main id="main-content">
         <Hero />
-        <StorySection />
-        <AtmosphereSection />
-        <MenuSection />
-        <GallerySection />
-        {siteSettings.instagram_strip_enabled && <InstagramStripSection />}
-        <ReviewsSection />
-        <ReservationSection />
-        <LocationContactSection />
+        <div className="reveal-on-scroll"><StorySection /></div>
+        <div className="reveal-on-scroll"><AtmosphereSection /></div>
+        <div className="reveal-on-scroll"><MenuSection /></div>
+        <div className="reveal-on-scroll"><GallerySection /></div>
+        {siteSettings.instagram_strip_enabled && <div className="reveal-on-scroll"><InstagramStripSection /></div>}
+        <div className="reveal-on-scroll"><ReviewsSection /></div>
+        <div className="reveal-on-scroll"><ReservationSection /></div>
+        <div className="reveal-on-scroll"><LocationContactSection /></div>
       </main>
       <Footer />
       <FloatingActions />

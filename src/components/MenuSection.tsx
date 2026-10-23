@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 
 export const MenuSection: React.FC = () => {
   const { isRTL } = useLanguage();
-  const { menuCategories, menuItems, siteSettings, sections, isPreviewMode } = useData();
+  const { menuCategories, menuItems, siteSettings, sections, isPreviewMode, isLoading } = useData();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -101,7 +101,20 @@ export const MenuSection: React.FC = () => {
         </div>
 
         {/* Menu Items Grid */}
-        {filteredItems.length === 0 ? (
+        {isLoading && menuItems.length === 0 ? (
+          <div className="menu-grid">
+            {[1, 2, 3, 4].map(n => (
+              <div key={n} className="menu-card" style={{ pointerEvents: 'none' }}>
+                <div className="menu-card-media skeleton-shimmer" style={{ minHeight: '180px' }} />
+                <div className="menu-card-body" style={{ padding: '16px' }}>
+                  <div className="skeleton-shimmer" style={{ height: '22px', width: '60%', marginBottom: '10px' }} />
+                  <div className="skeleton-shimmer" style={{ height: '14px', width: '90%', marginBottom: '8px' }} />
+                  <div className="skeleton-shimmer" style={{ height: '14px', width: '40%' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredItems.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--color-text-muted)' }}>
             <p style={{ fontSize: '1.125rem' }}>
               {isRTL 
