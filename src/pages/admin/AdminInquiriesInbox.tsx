@@ -204,7 +204,8 @@ export const AdminInquiriesInbox: React.FC = () => {
             <span style={{ fontSize: '0.8125rem', color: '#777' }}>النوع:</span>
             {[
               { id: 'all', label: 'الكل' },
-              { id: 'reservation_request', label: 'طلب حجز' },
+              { id: 'reservation_request', label: 'حجز طاولة' },
+              { id: 'event_request', label: 'مناسبات خاصة' },
               { id: 'contact_inquiry', label: 'استفسار عام' }
             ].map(t => (
               <button
@@ -260,8 +261,15 @@ export const AdminInquiriesInbox: React.FC = () => {
 
                       {/* Type Badge */}
                       <td>
-                        <span className={`badge ${inq.type === 'reservation_request' ? 'badge-gold' : 'badge-light'}`}>
-                          {inq.type === 'reservation_request' ? 'طلب حجز' : 'استفسار عام'}
+                        <span 
+                          className={`badge ${inq.type === 'reservation_request' ? 'badge-gold' : inq.type === 'event_request' ? 'badge-primary' : 'badge-light'}`}
+                          style={inq.type === 'event_request' ? { background: '#6B46C1', color: '#FFFFFF' } : undefined}
+                        >
+                          {inq.type === 'reservation_request' 
+                            ? 'حجز طاولة' 
+                            : inq.type === 'event_request' 
+                              ? 'مناسبة خاصة / مجموعات' 
+                              : 'استفسار عام'}
                         </span>
                       </td>
 
@@ -304,7 +312,7 @@ export const AdminInquiriesInbox: React.FC = () => {
 
                       {/* Details (Date / Time / Guests / Branch) */}
                       <td>
-                        {inq.type === 'reservation_request' ? (
+                        {inq.type === 'reservation_request' || inq.type === 'event_request' ? (
                           <div style={{ fontSize: '0.8125rem', color: '#444', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                             {inq.date && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

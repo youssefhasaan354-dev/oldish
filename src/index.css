@@ -246,7 +246,7 @@ section[id] {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--color-gold);
+  color: var(--color-gold-dark);
   font-size: 0.8125rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -542,4 +542,29 @@ html[dir="rtl"] .editorial-content h3 {
 #instagram-strip {
   content-visibility: auto;
   contain-intrinsic-size: 1px 600px;
+}
+
+/* Accessibility: Visible Focus Rings & Skip Link */
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+}
+
+.skip-to-content {
+  position: absolute;
+  top: -120px;
+  inset-inline-start: 16px;
+  background: var(--color-charcoal);
+  color: #FFFFFF;
+  border: 2px solid var(--color-gold);
+  padding: 10px 18px;
+  z-index: 100000;
+  border-radius: 4px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.2s ease;
+}
+
+.skip-to-content:focus {
+  top: 16px;
 }

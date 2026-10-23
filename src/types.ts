@@ -65,6 +65,7 @@ export interface MenuItem {
   image_url?: string;
   tags?: string[];
   is_signature?: boolean;
+  is_unavailable?: boolean; // Unavailable today toggle (greyed out with badge)
   is_sample?: boolean; // For dishes not yet confirmed by owner
   available: boolean;
   sort_order: number;
@@ -187,7 +188,7 @@ export interface SectionConfig {
 
 export interface Inquiry {
   id: string;
-  type: 'reservation_request' | 'contact_inquiry';
+  type: 'reservation_request' | 'event_request' | 'contact_inquiry';
   name: string;
   phone: string;
   email?: string;

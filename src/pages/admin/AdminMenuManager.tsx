@@ -146,6 +146,7 @@ export const AdminMenuManager: React.FC = () => {
         media_id: '',
         tags: [],
         is_signature: false,
+        is_unavailable: false,
         is_sample: false,
         available: true,
         visible: true,
@@ -841,6 +842,28 @@ export const AdminMenuManager: React.FC = () => {
                       onChange={(e) => setTagInput(e.target.value)}
                       placeholder="طاجن, لحوم, حار, نباتي"
                     />
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+                      {[
+                        { tag: 'نباتي', label: '+ 🌱 نباتي' },
+                        { tag: 'حار', label: '+ 🌶️ حار' },
+                        { tag: 'الأكثر طلباً', label: '+ ⭐ الأكثر طلباً' }
+                      ].map(p => (
+                        <button
+                          key={p.tag}
+                          type="button"
+                          className="btn btn-outline-light btn-sm"
+                          style={{ fontSize: '0.6875rem', padding: '2px 8px' }}
+                          onClick={() => {
+                            const current = tagInput.split(',').map(s => s.trim()).filter(Boolean);
+                            if (!current.includes(p.tag)) {
+                              setTagInput(current.concat(p.tag).join(', '));
+                            }
+                          }}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -889,6 +912,15 @@ export const AdminMenuManager: React.FC = () => {
                       onChange={(e) => setItemForm({ ...itemForm, is_signature: e.target.checked })}
                     />
                     <span style={{ fontSize: '0.875rem' }}>⭐ طبق مميز (Signature)</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={itemForm.is_unavailable || false}
+                      onChange={(e) => setItemForm({ ...itemForm, is_unavailable: e.target.checked })}
+                    />
+                    <span style={{ fontSize: '0.875rem' }}>🚫 غير متوفر اليوم (Unavailable today)</span>
                   </label>
 
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>

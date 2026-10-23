@@ -18,6 +18,7 @@ export const ReservationSection: React.FC = () => {
   const { siteSettings, submitInquiry, sections } = useData();
 
   const [form, setForm] = useState({
+    type: 'reservation_request' as 'reservation_request' | 'event_request',
     name: '',
     phone: '',
     email: '',
@@ -167,7 +168,7 @@ export const ReservationSection: React.FC = () => {
     }
 
     const res = await submitInquiry({
-      type: 'reservation_request',
+      type: form.type,
       name: form.name,
       phone: form.phone,
       email: form.email,
@@ -202,15 +203,16 @@ export const ReservationSection: React.FC = () => {
 
   const getWhatsAppBookingUrl = () => {
     const lines: string[] = [];
+    const isEvent = form.type === 'event_request';
     if (isRTL) {
-      lines.push('مرحباً أولديش، أود طلب حجز طاولة:');
+      lines.push(isEvent ? 'مرحباً أولديش، أود الاستفسار عن حجز مناسبة خاصة / مجموعات:' : 'مرحباً أولديش، أود طلب حجز طاولة:');
       if (form.name.trim()) lines.push(`• الاسم: ${form.name.trim()}`);
       if (form.date) lines.push(`• التاريخ: ${form.date}`);
       if (form.time) lines.push(`• الوقت: ${form.time}`);
       if (form.guests) lines.push(`• عدد الأفراد: ${form.guests}`);
       if (form.message.trim()) lines.push(`• ملاحظات: ${form.message.trim()}`);
     } else {
-      lines.push('Hello Oldish, I would like to request a table reservation:');
+      lines.push(isEvent ? 'Hello Oldish, I would like to inquire about a private event / group booking:' : 'Hello Oldish, I would like to request a table reservation:');
       if (form.name.trim()) lines.push(`• Name: ${form.name.trim()}`);
       if (form.date) lines.push(`• Date: ${form.date}`);
       if (form.time) lines.push(`• Time: ${form.time}`);
@@ -424,6 +426,26 @@ export const ReservationSection: React.FC = () => {
               />
 
               <div className="reservation-form-grid">
+                <div className="form-group form-full-width">
+                  <label htmlFor="res-type" className="form-label">
+                    <Calendar size={15} style={{ color: 'var(--color-gold)' }} />
+                    <span>{isRTL ? 'نوع الطلب' : 'Request Type'}</span>
+                  </label>
+                  <select
+                    id="res-type"
+                    value={form.type}
+                    onChange={(e) => setForm({ ...form, type: e.target.value as 'reservation_request' | 'event_request' })}
+                    className="form-select"
+                  >
+                    <option value="reservation_request">
+                      {isRTL ? 'حجز طاولة طعام / مشروبات (Table Reservation)' : 'Table Reservation (Dining & Drinks)'}
+                    </option>
+                    <option value="event_request">
+                      {isRTL ? 'مناسبة خاصة / حجز مجموعات وفعاليات (Private Event / Group Booking)' : 'Private Event / Group Booking'}
+                    </option>
+                  </select>
+                </div>
+
                 <div className="form-group">
                   <label htmlFor="res-name" className="form-label">
                     <User size={15} style={{ color: 'var(--color-gold)' }} />

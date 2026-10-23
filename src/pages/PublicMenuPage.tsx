@@ -24,6 +24,7 @@ export const PublicMenuPage: React.FC = () => {
   const { isRTL, language, toggleLanguage } = useLanguage();
   const { menuCategories, menuItems, siteSettings, trackClick, isPreviewMode } = useData();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedTag, setSelectedTag] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const visibleCategories = menuCategories.filter(c => c.visible).sort((a, b) => a.sort_order - b.sort_order);
@@ -41,9 +42,30 @@ export const PublicMenuPage: React.FC = () => {
         const matchAr = item.name_ar.toLowerCase().includes(q) || item.description_ar.toLowerCase().includes(q);
         if (!matchEn && !matchAr) return false;
       }
+      if (selectedTag === 'signature') {
+        const isSig = item.is_signature || item.tags?.some(t => {
+          const tl = t.toLowerCase();
+          return tl === 'signature' || tl === 'most ordered' || t.includes('مميز') || t.includes('الأكثر طلباً');
+        });
+        if (!isSig) return false;
+      }
+      if (selectedTag === 'vegetarian') {
+        const isVeg = item.tags?.some(t => {
+          const tl = t.toLowerCase();
+          return tl === 'vegetarian' || t.includes('نباتي');
+        });
+        if (!isVeg) return false;
+      }
+      if (selectedTag === 'spicy') {
+        const isSpicy = item.tags?.some(t => {
+          const tl = t.toLowerCase();
+          return tl === 'spicy' || t.includes('حار');
+        });
+        if (!isSpicy) return false;
+      }
       return true;
     }).sort((a, b) => a.sort_order - b.sort_order);
-  }, [menuItems, selectedCategory, searchQuery, isPreviewMode]);
+  }, [menuItems, selectedCategory, selectedTag, searchQuery, isPreviewMode]);
 
   const handlePrint = () => {
     window.print();
@@ -58,7 +80,10 @@ export const PublicMenuPage: React.FC = () => {
   );
 
   return (
-    <main className="standalone-menu-view">
+    <main id="main-content" className="standalone-menu-view">
+      <a href="#main-content" className="skip-to-content">
+        {isRTL ? 'تخطي إلى المحتوى الرئيسي' : 'Skip to main content'}
+      </a>
       <DemoBanner />
       {/* Top Header Bar (Screen only) */}
       <header className="standalone-menu-header no-print">
@@ -237,6 +262,35 @@ export const PublicMenuPage: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {/* Quick Tag Filters (Screen only) */}
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', marginTop: '10px' }}>
+            {[
+              { id: 'all', label_en: 'All Tags', label_ar: 'كل العلامات' },
+              { id: 'signature', label_en: '⭐ Most Ordered', label_ar: '⭐ الأكثر طلباً' },
+              { id: 'vegetarian', label_en: '🌱 Vegetarian', label_ar: '🌱 نباتي' },
+              { id: 'spicy', label_en: '🌶️ Spicy', label_ar: '🌶️ حار' },
+            ].map(tf => (
+              <button
+                key={tf.id}
+                type="button"
+                onClick={() => setSelectedTag(tf.id)}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '4px 12px',
+                  borderRadius: '16px',
+                  border: selectedTag === tf.id ? '1px solid var(--color-gold)' : '1px solid #D1D5DB',
+                  background: selectedTag === tf.id ? 'var(--color-gold)' : '#FFFFFF',
+                  color: selectedTag === tf.id ? '#FFFFFF' : 'var(--color-charcoal)',
+                  cursor: 'pointer',
+                  fontWeight: selectedTag === tf.id ? 600 : 400,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {isRTL ? tf.label_ar : tf.label_en}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -249,67 +303,104 @@ export const PublicMenuPage: React.FC = () => {
           </div>
         ) : (
           <div className="menu-items-grid" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {filteredItems.map((item) => (
-              <div 
-                key={item.id}
-                className="menu-item-card"
-                style={{
-                  background: '#FFFFFF',
-                  borderRadius: '6px',
-                  padding: '16px',
-                  border: item.is_signature ? '1.5px solid var(--color-gold)' : '1px solid rgba(0,0,0,0.08)',
-                  display: 'flex',
-                  gap: '16px',
-                  alignItems: 'flex-start',
-                  boxShadow: item.is_signature ? '0 4px 12px rgba(136, 110, 66, 0.12)' : 'var(--shadow-subtle)',
-                  pageBreakInside: 'avoid'
-                }}
-              >
-                {/* Optional Photo per item */}
-                {item.image_url && (
-                  <div className="item-photo-wrap" style={{ width: '84px', height: '84px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
-                    <img 
-                      src={item.image_url} 
-                      alt={isRTL ? item.name_ar : item.name_en} 
-                      loading="lazy"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                    />
-                  </div>
-                )}
+            {filteredItems.map((item) => {
+              const isUnavailable = item.is_unavailable || item.available === false;
+              return (
+                <div 
+                  key={item.id}
+                  className="menu-item-card"
+                  style={{
+                    background: '#FFFFFF',
+                    borderRadius: '6px',
+                    padding: '16px',
+                    border: item.is_signature ? '1.5px solid var(--color-gold)' : '1px solid rgba(0,0,0,0.08)',
+                    display: 'flex',
+                    gap: '16px',
+                    alignItems: 'flex-start',
+                    boxShadow: item.is_signature ? '0 4px 12px rgba(136, 110, 66, 0.12)' : 'var(--shadow-subtle)',
+                    opacity: isUnavailable ? 0.7 : 1,
+                    filter: isUnavailable ? 'grayscale(30%)' : 'none',
+                    pageBreakInside: 'avoid'
+                  }}
+                >
+                  {/* Optional Photo per item */}
+                  {item.image_url && (
+                    <div className="item-photo-wrap" style={{ width: '84px', height: '84px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
+                      <img 
+                        src={item.image_url} 
+                        alt={isRTL ? item.name_ar : item.name_en} 
+                        loading="lazy"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      />
+                    </div>
+                  )}
 
-                <div style={{ flexGrow: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <h3 style={{ fontSize: '1.0625rem', fontWeight: 600, color: 'var(--color-charcoal)', margin: 0 }}>
-                          {isRTL ? item.name_ar : item.name_en}
-                        </h3>
-                        {item.is_signature && (
-                          <span className="badge badge-gold" style={{ fontSize: '0.625rem', padding: '2px 6px' }}>
-                            <Star size={9} fill="currentColor" />
-                            <span>{isRTL ? 'مميز' : 'Signature'}</span>
-                          </span>
-                        )}
+                  <div style={{ flexGrow: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <h3 style={{ fontSize: '1.0625rem', fontWeight: 600, color: 'var(--color-charcoal)', margin: 0 }}>
+                            {isRTL ? item.name_ar : item.name_en}
+                          </h3>
+                          {isUnavailable && (
+                            <span className="badge" style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #D1D5DB', fontSize: '0.625rem', fontWeight: 600 }}>
+                              {isRTL ? 'غير متوفر اليوم' : 'Unavailable today'}
+                            </span>
+                          )}
+                          {item.is_signature && (
+                            <span className="badge badge-gold" style={{ fontSize: '0.625rem', padding: '2px 6px' }}>
+                              <Star size={9} fill="currentColor" />
+                              <span>{isRTL ? 'مميز' : 'Signature'}</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
+
+                      {siteSettings.show_prices && item.price ? (
+                        <span className="menu-dish-price" style={{ fontSize: '0.8125rem' }}>
+                          {item.price}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                          {isRTL ? 'بالقائمة الرسمية' : 'On venue menu'}
+                        </span>
+                      )}
                     </div>
 
-                    {siteSettings.show_prices && item.price ? (
-                      <span className="menu-dish-price" style={{ fontSize: '0.8125rem' }}>
-                        {item.price}
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                        {isRTL ? 'بالقائمة الرسمية' : 'On venue menu'}
-                      </span>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginTop: '6px', lineHeight: '1.5' }}>
+                      {isRTL ? item.description_ar : item.description_en}
+                    </p>
+
+                    {item.tags && item.tags.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
+                        {item.tags.map((t, idx) => {
+                          const tagLower = t.toLowerCase().trim();
+                          if (tagLower === 'vegetarian' || tagLower === 'نباتي') {
+                            return (
+                              <span key={idx} className="badge" style={{ background: '#E6F4EA', color: '#137333', border: '1px solid #CEEAD6', fontSize: '0.625rem' }}>
+                                🌱 {isRTL ? 'نباتي' : 'Vegetarian'}
+                              </span>
+                            );
+                          }
+                          if (tagLower === 'spicy' || tagLower === 'حار') {
+                            return (
+                              <span key={idx} className="badge" style={{ background: '#FCE8E6', color: '#C5221F', border: '1px solid #FAD2CF', fontSize: '0.625rem' }}>
+                                🌶️ {isRTL ? 'حار' : 'Spicy'}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span key={idx} className="badge badge-gold" style={{ fontSize: '0.625rem' }}>
+                              {t}
+                            </span>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
-
-                  <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginTop: '6px', lineHeight: '1.5' }}>
-                    {isRTL ? item.description_ar : item.description_en}
-                  </p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

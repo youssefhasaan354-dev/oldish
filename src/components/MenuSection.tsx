@@ -111,79 +111,115 @@ export const MenuSection: React.FC = () => {
           </div>
         ) : (
           <div className="menu-grid">
-            {filteredItems.map((item) => (
-              <article key={item.id} className="menu-card">
-                {/* Media if present */}
-                {item.image_url && (
-                  <div className="menu-card-media">
-                    <img 
-                      src={item.image_url} 
-                      alt={isRTL ? item.name_ar : item.name_en}
-                      loading="lazy" 
-                    />
-                    <span 
-                      className="badge" 
-                      style={{
-                        position: 'absolute',
-                        bottom: '8px',
-                        insetInlineStart: '8px',
-                        background: 'rgba(0, 0, 0, 0.7)',
-                        color: '#E0DDD7',
-                        fontSize: '0.6875rem'
-                      }}
-                    >
-                      {isRTL ? 'صورة توضيحية' : 'Illustrative image'}
-                    </span>
-                  </div>
-                )}
-
-                <div className="menu-card-body">
-                  <div className="menu-card-header">
-                    <div>
-                      <h3 className="menu-dish-title">
-                        {isRTL ? item.name_ar : item.name_en}
-                      </h3>
-                    </div>
-
-                    {/* Price display: Only shown if show_prices is active and price exists */}
-                    {siteSettings.show_prices && item.price ? (
-                      <span className="menu-dish-price">
-                        {item.price}
-                      </span>
-                    ) : (
+            {filteredItems.map((item) => {
+              const isUnavailable = item.is_unavailable || item.available === false;
+              return (
+                <article 
+                  key={item.id} 
+                  className="menu-card"
+                  style={isUnavailable ? { opacity: 0.7, filter: 'grayscale(30%)' } : undefined}
+                >
+                  {/* Media if present */}
+                  {item.image_url && (
+                    <div className="menu-card-media">
+                      <img 
+                        src={item.image_url} 
+                        alt={isRTL ? item.name_ar : item.name_en}
+                        loading="lazy" 
+                      />
                       <span 
                         className="badge" 
-                        style={{ 
-                          background: 'rgba(0,0,0,0.04)', 
-                          color: 'var(--color-text-muted)',
-                          fontSize: '0.75rem' 
+                        style={{
+                          position: 'absolute',
+                          bottom: '8px',
+                          insetInlineStart: '8px',
+                          background: 'rgba(0, 0, 0, 0.7)',
+                          color: '#E0DDD7',
+                          fontSize: '0.6875rem'
                         }}
                       >
-                        {isRTL ? 'بالقائمة الرسمية' : 'On venue menu'}
+                        {isRTL ? 'صورة توضيحية' : 'Illustrative image'}
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
-                  <p className="menu-dish-desc">
-                    {isRTL ? item.description_ar : item.description_en}
-                  </p>
+                  <div className="menu-card-body">
+                    <div className="menu-card-header">
+                      <div>
+                        <h3 className="menu-dish-title">
+                          {isRTL ? item.name_ar : item.name_en}
+                        </h3>
+                      </div>
 
-                  <div className="menu-card-footer">
-                    {item.is_signature && (
-                      <span className="badge badge-gold">
-                        <Star size={12} fill="currentColor" />
-                        <span>{isRTL ? 'من أشهر أطباق أولديش' : 'Oldish Signature'}</span>
-                      </span>
-                    )}
-                    {item.tags?.map((t, idx) => (
-                      <span key={idx} className="badge badge-gold">
-                        {t}
-                      </span>
-                    ))}
+                      {/* Price display: Only shown if show_prices is active and price exists */}
+                      {siteSettings.show_prices && item.price ? (
+                        <span className="menu-dish-price">
+                          {item.price}
+                        </span>
+                      ) : (
+                        <span 
+                          className="badge" 
+                          style={{ 
+                            background: 'rgba(0,0,0,0.04)', 
+                            color: 'var(--color-text-muted)',
+                            fontSize: '0.75rem' 
+                          }}
+                        >
+                          {isRTL ? 'بالقائمة الرسمية' : 'On venue menu'}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="menu-dish-desc">
+                      {isRTL ? item.description_ar : item.description_en}
+                    </p>
+
+                    <div className="menu-card-footer" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                      {isUnavailable && (
+                        <span className="badge" style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #D1D5DB', fontSize: '0.6875rem', fontWeight: 600 }}>
+                          {isRTL ? 'غير متوفر اليوم' : 'Unavailable today'}
+                        </span>
+                      )}
+                      {item.is_signature && (
+                        <span className="badge badge-gold" style={{ fontSize: '0.6875rem' }}>
+                          <Star size={11} fill="currentColor" />
+                          <span>{isRTL ? 'من أشهر أطباق أولديش' : 'Oldish Signature'}</span>
+                        </span>
+                      )}
+                      {item.tags?.map((t, idx) => {
+                        const tagLower = t.toLowerCase().trim();
+                        if (tagLower === 'vegetarian' || tagLower === 'نباتي') {
+                          return (
+                            <span key={idx} className="badge" style={{ background: '#E6F4EA', color: '#137333', border: '1px solid #CEEAD6', fontSize: '0.6875rem' }}>
+                              🌱 {isRTL ? 'نباتي' : 'Vegetarian'}
+                            </span>
+                          );
+                        }
+                        if (tagLower === 'spicy' || tagLower === 'حار') {
+                          return (
+                            <span key={idx} className="badge" style={{ background: '#FCE8E6', color: '#C5221F', border: '1px solid #FAD2CF', fontSize: '0.6875rem' }}>
+                              🌶️ {isRTL ? 'حار' : 'Spicy'}
+                            </span>
+                          );
+                        }
+                        if (tagLower === 'signature' || tagLower === 'الأكثر طلباً' || tagLower === 'مميز') {
+                          return (
+                            <span key={idx} className="badge badge-gold" style={{ fontSize: '0.6875rem' }}>
+                              ⭐ {isRTL ? 'الأكثر طلباً' : 'Most Ordered'}
+                            </span>
+                          );
+                        }
+                        return (
+                          <span key={idx} className="badge badge-gold" style={{ fontSize: '0.6875rem' }}>
+                            {t}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         )}
 

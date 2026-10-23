@@ -60,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({ activeSection }) => {
   return (
     <>
       <a href="#main-content" className="skip-to-content">
-        Skip to main content
+        {isRTL ? 'تخطي إلى المحتوى الرئيسي' : 'Skip to main content'}
       </a>
 
       <header className={`site-header ${isScrolled ? 'scrolled' : ''}`} role="banner">

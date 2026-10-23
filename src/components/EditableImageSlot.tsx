@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
 import { useVisualEdit } from '../context/VisualEditContext';
 import { Camera, EyeOff } from 'lucide-react';
@@ -33,6 +34,7 @@ export const EditableImageSlot: React.FC<EditableImageSlotProps> = ({
   showOverlay = true,
   children
 }) => {
+  const { isRTL } = useLanguage();
   const { getImageForSlot } = useData();
   const { isVisualEditActive, setActiveEditingSlotKey } = useVisualEdit();
 
@@ -79,7 +81,7 @@ export const EditableImageSlot: React.FC<EditableImageSlotProps> = ({
     );
   }
 
-  const effectiveAlt = alt || altAr || altEn;
+  const effectiveAlt = alt || (isRTL ? altAr || altEn : altEn || altAr) || (isRTL ? slot?.label_ar : slot?.label_en) || 'Oldish Restaurant & Café';
 
   const srcSet = getResponsiveSrcSet(url);
 
