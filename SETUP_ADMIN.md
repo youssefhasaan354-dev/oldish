@@ -150,8 +150,18 @@ service cloud.firestore {
 | `VITE_SITE_URL` | Client (عام) | رابط الموقع الرسمي مثل `https://oldish-chi.vercel.app` |
 | `CLOUDINARY_API_KEY` | **Server-only (سري)** | مفتاح API الخاص بـ Cloudinary (لا يبدأ بـ VITE_) |
 | `CLOUDINARY_API_SECRET` | **Server-only (سري)** | المفتاح السري الخاص بـ Cloudinary (لا يبدأ بـ VITE_) |
+| `VITE_TURNSTILE_SITE_KEY` | Client (اختياري) | مفتاح موقع Cloudflare Turnstile لمنع السبام |
+| `TURNSTILE_SECRET_KEY` | Server-only (اختياري) | المفتاح السري للتحقق من كابتشا Turnstile خادمياً |
+| `TELEGRAM_BOT_TOKEN` | Server-only (اختياري) | توكن بوت تليجرام لإشعار المالك بالحجوزات الجديدة |
+| `TELEGRAM_CHAT_ID` | Server-only (اختياري) | معرف محادثة تليجرام للمالك لاستلام الحجوزات فوراً |
+| `RESEND_API_KEY` | Server-only (اختياري) | مفتاح خدمة Resend لإرسال إشعارات الحجز بالبريد |
+| `OWNER_EMAIL` | Server-only (اختياري) | البريد الإلكتروني للمالك لاستلام الإشعارات |
+| `VITE_SENTRY_DSN` | Client (اختياري) | مفتاح تتبع وتسجيل الأخطاء عبر Sentry (تحميل كسول) |
+| `VITE_VERCEL_ANALYTICS` | Client (اختياري) | تفعيل تحليلات Vercel Web Analytics |
+| `VITE_PLAUSIBLE_DOMAIN` | Client (اختياري) | نطاق تحليلات Plausible الخفيفة الصديقة للخصوصية |
+| `VITE_PLAUSIBLE_API_HOST`| Client (اختياري) | عنوان استضافة Plausible مخصص (الافتراضي plausible.io) |
 
-> **تحذير أمني هام**: لا تقم مطلقاً بوضع البادئة `VITE_` أمام مفاتيح `CLOUDINARY_API_KEY` أو `CLOUDINARY_API_SECRET` حتى لا تظهر في حزم المتصفح. دوال الخادم في `/api/sign-upload.js` و `/api/delete-asset.js` تقرأها بأمان تام.
+> **تحذير أمني هام**: لا تقم مطلقاً بوضع البادئة `VITE_` أمام مفاتيح `CLOUDINARY_API_KEY` أو `CLOUDINARY_API_SECRET` أو `TURNSTILE_SECRET_KEY` أو `TELEGRAM_BOT_TOKEN` حتى لا تظهر في حزم المتصفح. دوال الخادم تقرأها بأمان تام. جميع الميزات الاختيارية تتوقف تلقائياً دون أي تأثير في حال عدم إدخال مفاتيحها.
 
 ---
 

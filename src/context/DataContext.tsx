@@ -44,6 +44,7 @@ import {
 import { useAuth } from './AuthContext';
 import { saveBlob, clearAllBlobs } from '../lib/idbStorage';
 import { processImageUpload, validateImageFile } from '../lib/imageProcessor';
+import { trackAnalyticsEvent, captureException } from '../lib/monitoring';
 
 interface DataContextType {
   siteSettings: SiteSettings;
@@ -875,6 +876,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const trackClick = (type: 'calls' | 'directions' | 'menu_views' | 'whatsapp_clicks' | 'reservation_requests') => {
+    trackAnalyticsEvent(`click_${type}`, { type });
     setSiteSettings(prev => {
       const current = prev.analytics_clicks || {
         calls: 0,
@@ -1200,6 +1202,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
       } catch (dbErr: any) {
         console.error('Firestore inquiry insert failed:', dbErr);
+        captureException(dbErr, { inquiryId: newInquiry.id });
         // Keep in localStorage only as retry queue
         try {
           const rawRetry = localStorage.getItem(STORAGE_KEY_INQUIRIES_RETRY);
