@@ -10,6 +10,7 @@ import { useDynamicSeo } from './lib/seo';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Public Landing Components
+import { DemoBanner } from './components/DemoBanner';
 import { AnnouncementBanner } from './components/AnnouncementBanner';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
@@ -70,6 +71,7 @@ const PublicLandingPage: React.FC = () => {
 
   return (
     <div className="site-wrapper">
+      <DemoBanner />
       <AnnouncementBanner />
       <Header activeSection={activeSection} />
       <main id="main-content">

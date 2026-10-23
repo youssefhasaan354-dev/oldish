@@ -147,6 +147,10 @@ export interface SiteSettings {
   bg_color: string; // #FAF8F5
   font_family_en: string;
   font_family_ar: string;
+  // Demo Banner (Sales Presentation)
+  demo_banner_enabled?: boolean;
+  demo_banner_text_en?: string;
+  demo_banner_text_ar?: string;
   // Announcements
   announcement_enabled?: boolean;
   announcement_text_en?: string;

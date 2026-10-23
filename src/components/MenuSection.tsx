@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 
 export const MenuSection: React.FC = () => {
   const { isRTL } = useLanguage();
-  const { menuCategories, menuItems, siteSettings, sections } = useData();
+  const { menuCategories, menuItems, siteSettings, sections, isPreviewMode } = useData();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -18,6 +18,7 @@ export const MenuSection: React.FC = () => {
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
       if (!item.visible) return false;
+      if (item.is_sample && !isPreviewMode) return false;
       if (selectedCategory !== 'all' && item.category_id !== selectedCategory) {
         return false;
       }
@@ -29,7 +30,7 @@ export const MenuSection: React.FC = () => {
       }
       return true;
     }).sort((a, b) => a.sort_order - b.sort_order);
-  }, [menuItems, selectedCategory, searchQuery]);
+  }, [menuItems, selectedCategory, searchQuery, isPreviewMode]);
 
   const menuSec = sections.find(s => s.key === 'menu');
   if (menuSec && !menuSec.visible) {

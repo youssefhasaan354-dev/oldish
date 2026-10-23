@@ -50,7 +50,7 @@ export const AdminSeoManager: React.FC = () => {
     "name": "Oldish Restaurant & Café",
     "alternateName": "أولديش",
     "image": [
-      `${form.site_domain || 'https://oldish.eg'}/images/hero.jpg`
+      `${form.site_domain || 'https://oldish-chi.vercel.app'}/images/hero.jpg`
     ],
     "servesCuisine": ["Egyptian", "Middle Eastern", "Cafe", "Breakfast"],
     "priceRange": form.price_range || "$$",
@@ -87,20 +87,20 @@ export const AdminSeoManager: React.FC = () => {
   // Dynamic Robots.txt preview
   const robotsTxt = form.noindex 
     ? `# Oldish Sales Demo - Indexing Disabled\nUser-agent: *\nDisallow: /\n`
-    : `# Oldish Production\nUser-agent: *\nAllow: /\n\nSitemap: ${form.site_domain || 'https://oldish.eg'}/sitemap.xml\n`;
+    : `# Oldish Production\nUser-agent: *\nAllow: /\n\nSitemap: ${form.site_domain || 'https://oldish-chi.vercel.app'}/sitemap.xml\n`;
 
   // Dynamic Sitemap.xml preview
   const sitemapXml = useMemo(() => {
     return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>${form.site_domain || 'https://oldish.eg'}/</loc>
+    <loc>${form.site_domain || 'https://oldish-chi.vercel.app'}/</loc>
     <lastmod>${todayDate}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>${form.site_domain || 'https://oldish.eg'}/menu</loc>
+    <loc>${form.site_domain || 'https://oldish-chi.vercel.app'}/menu</loc>
     <lastmod>${todayDate}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -192,7 +192,7 @@ export const AdminSeoManager: React.FC = () => {
                 dir="ltr"
                 value={form.site_domain}
                 onChange={(e) => setForm({ ...form, site_domain: e.target.value })}
-                placeholder="https://oldish.eg"
+                placeholder="https://oldish-chi.vercel.app"
               />
               <span style={{ fontSize: '0.75rem', color: '#888' }}>يستخدم لتوليد روابط OpenGraph والخرائط التلقائية</span>
             </div>
@@ -210,7 +210,7 @@ export const AdminSeoManager: React.FC = () => {
 
           <div style={{ background: '#fff', padding: '16px 20px', borderRadius: '8px', border: '1px solid #E2E8F0', maxWidth: '640px' }}>
             <div style={{ fontSize: '0.75rem', color: '#202124', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-              <span style={{ background: '#F1F3F4', padding: '2px 6px', borderRadius: '4px' }}>{form.site_domain || 'https://oldish.eg'}</span>
+              <span style={{ background: '#F1F3F4', padding: '2px 6px', borderRadius: '4px' }}>{form.site_domain || 'https://oldish-chi.vercel.app'}</span>
               <span>›</span>
               <span>cairo</span>
             </div>
@@ -245,7 +245,7 @@ export const AdminSeoManager: React.FC = () => {
             </div>
             <div style={{ padding: '14px 16px', background: '#F8F9FA' }}>
               <div style={{ fontSize: '0.75rem', color: '#6C757D', textTransform: 'uppercase' }}>
-                {new URL(form.site_domain || 'https://oldish.eg').hostname}
+                {new URL(form.site_domain || 'https://oldish-chi.vercel.app').hostname}
               </div>
               <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: '#212529', marginTop: '4px' }}>
                 Oldish Restaurant & Café | Downtown Cairo

@@ -28,12 +28,16 @@ export const SEED_SITE_SETTINGS: SiteSettings = {
   elmenus_url: 'https://www.elmenus.com/cairo/restaurants/oldish-downtown',
   show_prices: false, // Default false until owner confirms official price list
   noindex: true,
-  site_domain: 'localhost:5174',
+  site_domain: 'https://oldish-chi.vercel.app',
   primary_color: '#886E42',
   charcoal_color: '#222222',
   bg_color: '#FAF8F5',
   font_family_en: 'Poppins, sans-serif',
   font_family_ar: 'Cairo, sans-serif',
+  // Demo Banner
+  demo_banner_enabled: false,
+  demo_banner_text_en: "Oldish Restaurant & Café — Timeless Cairo Gathering Place",
+  demo_banner_text_ar: "مطعم ومقهى أولديش — ملتقى تراثي عريق بقلب القاهرة",
   // Branding Logo Slots
   logo_url: '',
   logo_dark_url: '',

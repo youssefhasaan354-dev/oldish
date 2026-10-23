@@ -17,11 +17,12 @@ import {
 import { Link } from 'react-router-dom';
 import { useNoIndex } from '../lib/seo';
 import { EditableImageSlot } from '../components/EditableImageSlot';
+import { DemoBanner } from '../components/DemoBanner';
 
 export const PublicMenuPage: React.FC = () => {
   useNoIndex();
   const { isRTL, language, toggleLanguage } = useLanguage();
-  const { menuCategories, menuItems, siteSettings, trackClick } = useData();
+  const { menuCategories, menuItems, siteSettings, trackClick, isPreviewMode } = useData();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -30,6 +31,7 @@ export const PublicMenuPage: React.FC = () => {
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
       if (!item.visible) return false;
+      if (item.is_sample && !isPreviewMode) return false;
       if (selectedCategory !== 'all' && item.category_id !== selectedCategory) {
         return false;
       }
@@ -41,7 +43,7 @@ export const PublicMenuPage: React.FC = () => {
       }
       return true;
     }).sort((a, b) => a.sort_order - b.sort_order);
-  }, [menuItems, selectedCategory, searchQuery]);
+  }, [menuItems, selectedCategory, searchQuery, isPreviewMode]);
 
   const handlePrint = () => {
     window.print();
@@ -57,6 +59,7 @@ export const PublicMenuPage: React.FC = () => {
 
   return (
     <main className="standalone-menu-view">
+      <DemoBanner />
       {/* Top Header Bar (Screen only) */}
       <header className="standalone-menu-header no-print">
         <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBlock: '12px' }}>
