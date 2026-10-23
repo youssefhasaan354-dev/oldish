@@ -100,10 +100,62 @@ export const sanitizeForFirestore = <T>(obj: T): T => {
 };
 
 // ==========================================
+// FIRESTORE REST API (Lightweight for public pages)
+// Avoids loading the full ~415KB Firestore SDK for anonymous visitors
+// ==========================================
+
+function decodeFirestoreValue(val: any): any {
+  if (!val || typeof val !== 'object') return null;
+  if ('stringValue' in val) return val.stringValue;
+  if ('booleanValue' in val) return val.booleanValue;
+  if ('integerValue' in val) return parseInt(val.integerValue, 10);
+  if ('doubleValue' in val) return parseFloat(val.doubleValue);
+  if ('nullValue' in val) return null;
+  if ('mapValue' in val) {
+    const fields = val.mapValue.fields || {};
+    const res: Record<string, any> = {};
+    for (const [k, v] of Object.entries(fields)) {
+      res[k] = decodeFirestoreValue(v);
+    }
+    return res;
+  }
+  if ('arrayValue' in val) {
+    const values = val.arrayValue.values || [];
+    return values.map(decodeFirestoreValue);
+  }
+  return null;
+}
+
+export function decodeFirestoreDocument(fields: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    result[key] = decodeFirestoreValue(value);
+  }
+  return result;
+}
+
+// ==========================================
 // FIRESTORE PUBLISHED & DRAFT DATA
 // ==========================================
 
 export const loadPublishedSite = async (): Promise<PublishedSiteSnapshot | null> => {
+  const projectId = firebaseConfig.projectId;
+  if (projectId) {
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/published/site`;
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.fields) {
+          return decodeFirestoreDocument(data.fields) as PublishedSiteSnapshot;
+        }
+      }
+    } catch (err) {
+      console.warn('Firestore REST fetch failed, falling back to SDK:', err);
+    }
+  }
+
+  // Fallback to Firestore SDK
   const db = await getDb();
   if (!db) return null;
   const { doc, getDoc } = await import('firebase/firestore');
