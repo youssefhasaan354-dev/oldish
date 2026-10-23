@@ -27,7 +27,7 @@ export const LocationContactSection: React.FC = () => {
     setErrorMsg('');
     setIsSending(true);
 
-    await submitInquiry({
+    const res = await submitInquiry({
       type: 'contact_inquiry',
       name: contactForm.name,
       phone: contactForm.phone,
@@ -36,7 +36,16 @@ export const LocationContactSection: React.FC = () => {
     });
 
     setIsSending(false);
-    setFormSubmitted(true);
+    if (res.success) {
+      setFormSubmitted(true);
+      setErrorMsg('');
+    } else {
+      setErrorMsg(
+        isRTL 
+          ? 'تعذر إرسال الرسالة حالياً، يرجى المحاولة لاحقاً أو الاتصال بنا مباشرة.' 
+          : 'Could not send message, please try again later or call venue directly.'
+      );
+    }
   };
 
   const visibleBranches = branches.filter(b => b.visible);

@@ -126,6 +126,7 @@ const STORAGE_KEY_SCHEMA_VERSION = 'oldish_data_schema_version';
 const STORAGE_KEY_PUBLISHED = 'oldish_published_data_v5';
 const STORAGE_KEY_DRAFT = 'oldish_draft_data_v5';
 const STORAGE_KEY_INQUIRIES = 'oldish_inquiries_v5';
+const STORAGE_KEY_INQUIRIES_RETRY = 'oldish_inquiries_retry_v5';
 const STORAGE_KEY_VERSIONS = 'oldish_versions_v5';
 const STORAGE_KEY_LOGS = 'oldish_logs_v5';
 
@@ -1131,21 +1132,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       created_at: new Date().toISOString()
     };
 
-    setInquiries(prev => {
-      const updated = [newInquiry, ...prev];
-      localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
-      return updated;
-    });
-
     if (isFirebaseActive) {
       try {
         await submitInquiryToFirestore(newInquiry);
+        setInquiries(prev => {
+          const updated = [newInquiry, ...prev];
+          localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
+          return updated;
+        });
+        return { success: true };
       } catch (dbErr: any) {
-        console.warn('Firestore inquiry insert warning:', dbErr);
+        console.error('Firestore inquiry insert failed:', dbErr);
+        // Keep in localStorage only as retry queue
+        try {
+          const rawRetry = localStorage.getItem(STORAGE_KEY_INQUIRIES_RETRY);
+          const queue: Inquiry[] = rawRetry ? JSON.parse(rawRetry) : [];
+          queue.push(newInquiry);
+          localStorage.setItem(STORAGE_KEY_INQUIRIES_RETRY, JSON.stringify(queue));
+        } catch {}
+        return { 
+          success: false, 
+          error: dbErr?.message || (typeof dbErr === 'string' ? dbErr : 'Failed to submit inquiry to server') 
+        };
       }
+    } else {
+      setInquiries(prev => {
+        const updated = [newInquiry, ...prev];
+        localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
+        return updated;
+      });
+      return { success: true };
     }
-
-    return { success: true };
   };
 
   const markInquiryHandled = (id: string) => {

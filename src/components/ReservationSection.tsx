@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
-import { Phone, Calendar, Clock, Users, User, Mail, CheckCircle, AlertTriangle, Send } from 'lucide-react';
+import { Phone, Calendar, Clock, Users, User, Mail, CheckCircle, AlertTriangle, Send, MessageCircle } from 'lucide-react';
 
 export const ReservationSection: React.FC = () => {
   const { isRTL } = useLanguage();
@@ -19,6 +19,7 @@ export const ReservationSection: React.FC = () => {
   });
 
   const [errors, setErrors] = useState<{ name?: string; phone?: string }>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
@@ -38,9 +39,10 @@ export const ReservationSection: React.FC = () => {
     }
 
     setErrors({});
+    setSubmitError(null);
     setIsSubmitting(true);
 
-    await submitInquiry({
+    const res = await submitInquiry({
       type: 'reservation_request',
       name: form.name,
       phone: form.phone,
@@ -54,7 +56,17 @@ export const ReservationSection: React.FC = () => {
     });
 
     setIsSubmitting(false);
-    setIsSubmitted(true);
+
+    if (res.success) {
+      setIsSubmitted(true);
+      setSubmitError(null);
+    } else {
+      setSubmitError(
+        isRTL 
+          ? 'تعذر إرسال طلب الحجز إلى النظام حالياً. يرجى الاتصال بنا هاتفياً أو مراسلتنا عبر واتساب لتأكيد حجزك فوراً:' 
+          : 'Could not submit your reservation request to the server. Please call us directly or message via WhatsApp to confirm your table:'
+      );
+    }
   };
 
   const resSec = sections.find(s => s.key === 'reservations');
@@ -193,12 +205,64 @@ export const ReservationSection: React.FC = () => {
                   className="btn btn-outline-gold btn-sm"
                   onClick={() => setIsSubmitted(false)}
                 >
-                  {isRTL ? 'إرسال طلب آخر' : 'Submit Another Request'}
+                  {isRTL ? 'إرسال طلب آخر' : 'Send another request'}
                 </button>
               </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate>
+              {submitError && (
+                <div 
+                  className="reservation-error-box"
+                  style={{
+                    background: '#FFF5F5',
+                    border: '1px solid #FEB2B2',
+                    borderRadius: '8px',
+                    padding: '16px 20px',
+                    marginBottom: '20px',
+                    color: '#9B2C2C',
+                    lineHeight: 1.6
+                  }}
+                  role="alert"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <AlertTriangle size={20} style={{ color: '#E53E3E', flexShrink: 0 }} />
+                    <strong style={{ fontSize: '1rem' }}>
+                      {isRTL ? 'تنبيه في إرسال طلب الحجز' : 'Submission Alert'}
+                    </strong>
+                  </div>
+                  <p style={{ margin: '0 0 12px 0', fontSize: '0.875rem' }}>
+                    {submitError}
+                  </p>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <a
+                      href={`tel:${siteSettings.phone.replace(/\s+/g, '')}`}
+                      className="btn btn-primary btn-sm"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Phone size={14} />
+                      <span>{isRTL ? `اتصال مباشر: ${siteSettings.phone}` : `Call: ${siteSettings.phone}`}</span>
+                    </a>
+                    {siteSettings.whatsapp && (
+                      <a
+                        href={`https://wa.me/${siteSettings.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                          isRTL 
+                            ? `مرحباً، أود حجز طاولة في أولديش باسم ${form.name || ''} لتاريخ ${form.date || ''}` 
+                            : `Hello, I would like to reserve a table at Oldish for ${form.name || ''} on ${form.date || ''}`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-outline-gold btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <MessageCircle size={14} />
+                        <span>{isRTL ? 'مراسلة عبر واتساب' : 'WhatsApp'}</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Anti-spam honeypot - hidden from human users */}
               <input 
                 type="text" 
