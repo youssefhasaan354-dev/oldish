@@ -99,16 +99,25 @@ service cloud.firestore {
       allow write: if isOwner();
     }
 
-    // 5. استفسارات الزوار - إنشاء متاح للجميع مع تحقق الحقول، قراءة وإدارة للمدراء فقط
+    // 5. استفسارات الزوار - إنشاء متاح للجميع مع تحقق الحقول والمفاتيح المسموحة، قراءة وإدارة للمدراء فقط
     match /inquiries/{inquiryId} {
       allow create: if 
+        request.resource.data.keys().hasOnly([
+          'id', 'type', 'name', 'phone', 'email', 'date', 'time', 'guests', 'message', 'status', 'created_at', 'branch', 'honeypot'
+        ]) &&
         request.resource.data.name is string &&
         request.resource.data.name.size() > 1 &&
         request.resource.data.name.size() <= 100 &&
         request.resource.data.phone is string &&
         request.resource.data.phone.size() >= 6 &&
         request.resource.data.phone.size() <= 30 &&
-        request.resource.data.status == 'new';
+        request.resource.data.status == 'new' &&
+        (!('message' in request.resource.data) || request.resource.data.message == null || (request.resource.data.message is string && request.resource.data.message.size() <= 1000)) &&
+        (!('email' in request.resource.data) || request.resource.data.email == null || (request.resource.data.email is string && request.resource.data.email.size() <= 100)) &&
+        (!('branch' in request.resource.data) || request.resource.data.branch == null || (request.resource.data.branch is string && request.resource.data.branch.size() <= 100)) &&
+        (!('date' in request.resource.data) || request.resource.data.date == null || (request.resource.data.date is string && request.resource.data.date.size() <= 30)) &&
+        (!('time' in request.resource.data) || request.resource.data.time == null || (request.resource.data.time is string && request.resource.data.time.size() <= 20)) &&
+        (!('guests' in request.resource.data) || request.resource.data.guests == null || (request.resource.data.guests is string && request.resource.data.guests.size() <= 20));
         
       allow read, update, delete: if isAdmin();
     }

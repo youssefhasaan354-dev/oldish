@@ -87,7 +87,7 @@ export const uploadToCloudinary = async (
     throw new Error(errorJson.error || `Failed to sign upload: HTTP ${signRes.status}`);
   }
 
-  const { signature, timestamp, folder, apiKey, cloudName } = await signRes.json();
+  const { signature, timestamp, folder, allowed_formats, max_file_size, apiKey, cloudName } = await signRes.json();
   options?.onProgress?.(30, 'جاري رفع الصورة إلى التخزين السحابي...');
 
   const formData = new FormData();
@@ -96,6 +96,12 @@ export const uploadToCloudinary = async (
   formData.append('timestamp', String(timestamp));
   formData.append('signature', signature);
   formData.append('folder', folder);
+  if (allowed_formats) {
+    formData.append('allowed_formats', allowed_formats);
+  }
+  if (max_file_size) {
+    formData.append('max_file_size', String(max_file_size));
+  }
 
   const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
     method: 'POST',

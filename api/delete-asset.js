@@ -16,8 +16,11 @@ export default async function handler(req, res) {
     try { body = JSON.parse(body); } catch {}
   }
   const { public_id } = body || {};
-  if (!public_id) {
-    return res.status(400).json({ error: 'Missing public_id parameter' });
+  if (!public_id || typeof public_id !== 'string') {
+    return res.status(400).json({ error: 'Missing or invalid public_id parameter' });
+  }
+  if (!public_id.startsWith('oldish/')) {
+    return res.status(400).json({ error: 'Forbidden: public_id must start with "oldish/"' });
   }
 
   const firebaseApiKey = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY;

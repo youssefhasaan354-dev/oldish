@@ -81,15 +81,27 @@ export default async function handler(req, res) {
   // 6. Sign upload payload
   const timestamp = Math.round(Date.now() / 1000);
   const folder = 'oldish';
+  const allowed_formats = 'jpg,jpeg,png,webp,avif';
+  const max_file_size = 10485760; // 10MB limit
 
-  // Sorted parameters: folder, timestamp
-  const toSign = `folder=${folder}&timestamp=${timestamp}${cloudinaryApiSecret}`;
+  // Sorted parameters for Cloudinary signature
+  const params = {
+    allowed_formats,
+    folder,
+    max_file_size,
+    timestamp
+  };
+
+  const sortedKeys = Object.keys(params).sort();
+  const toSign = sortedKeys.map(k => `${k}=${params[k]}`).join('&') + cloudinaryApiSecret;
   const signature = crypto.createHash('sha1').update(toSign).digest('hex');
 
   return res.status(200).json({
     signature,
     timestamp,
     folder,
+    allowed_formats,
+    max_file_size,
     apiKey: cloudinaryApiKey,
     cloudName: cloudinaryCloudName
   });
