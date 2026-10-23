@@ -1,5 +1,4 @@
 const puppeteer = require('puppeteer-core');
-const fs = require('fs');
 
 const CHROME_PATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const BASE_URL = 'http://localhost:4173';

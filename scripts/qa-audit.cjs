@@ -87,7 +87,6 @@ async function runAudit() {
       await page.setViewport({ width: w, height: 800 });
       await new Promise(r => setTimeout(r, 100));
       const overflow = await page.evaluate((width) => {
-        const docWidth = document.documentElement.offsetWidth;
         const scrollWidth = document.documentElement.scrollWidth;
         const bodyScrollWidth = document.body.scrollWidth;
         const diff = Math.max(scrollWidth, bodyScrollWidth) - width;

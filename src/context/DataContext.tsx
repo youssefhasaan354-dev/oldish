@@ -294,13 +294,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const cachedLogs = localStorage.getItem(STORAGE_KEY_LOGS);
 
         if (cachedInquiries) {
-          try { setInquiries(JSON.parse(cachedInquiries)); } catch (e) {}
+          try { setInquiries(JSON.parse(cachedInquiries)); } catch {}
         }
         if (cachedVersions) {
-          try { setVersions(JSON.parse(cachedVersions)); } catch (e) {}
+          try { setVersions(JSON.parse(cachedVersions)); } catch {}
         }
         if (cachedLogs) {
-          try { setActivityLogs(JSON.parse(cachedLogs)); } catch (e) {}
+          try { setActivityLogs(JSON.parse(cachedLogs)); } catch {}
         }
 
         // Apply local published cache immediately for fast render

@@ -1,6 +1,4 @@
 const puppeteer = require('puppeteer-core');
-const fs = require('fs');
-const path = require('path');
 
 const CHROME_PATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const BASE_URL = 'http://localhost:4173';
@@ -130,7 +128,6 @@ async function runTests() {
         // If UTC is 22:01 -> Cairo is 00:01 (Closed)
         // If UTC is 05:59 -> Cairo is 07:59 (Opening soon)
         // If UTC is 06:01 -> Cairo is 08:01 (Open)
-        const d = new Date(Date.UTC(2026, 9, 18, utcHour, utcMinute, 0));
         
         // Cairo hour = (utcHour + 2) % 24
         const cairoHour = (utcHour + 2) % 24;
@@ -180,7 +177,6 @@ async function runTests() {
 
     const printStyles = await printPage.evaluate(() => {
       const header = document.querySelector('header');
-      const footer = document.querySelector('footer');
       const floatingBar = document.querySelector('.floating-actions');
       const menuCards = document.querySelectorAll('.menu-category-card, .menu-item-row');
       return {
@@ -311,7 +307,7 @@ async function runTests() {
           };
           openReq.onerror = () => reject(openReq.error);
         });
-      } catch(e) {
+      } catch {
         idbSuccess = false;
       }
 
@@ -323,7 +319,7 @@ async function runTests() {
           const tx = db.transaction('images', 'readwrite');
           tx.objectStore('images').delete('test_10mb_item');
         };
-      } catch(e) {}
+      } catch {}
 
       // 5. Test Schema Migration from legacy v1 store
       const legacyV1Data = {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 
-export function getCairoLiveStatus() {
+function getCairoLiveStatus() {
   const now = new Date();
   const cairoFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Africa/Cairo',

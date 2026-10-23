@@ -23,7 +23,7 @@ const puppeteer = require('puppeteer-core');
         status: res.status(),
         size: buffer.length
       });
-    } catch(e) {}
+    } catch {}
   });
 
   await page.goto('http://localhost:4173/', { waitUntil: 'networkidle2' });

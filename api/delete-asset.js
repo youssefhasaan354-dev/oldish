@@ -13,7 +13,7 @@ export default async function handler(req, res) {
 
   let body = req.body;
   if (typeof body === 'string') {
-    try { body = JSON.parse(body); } catch (e) {}
+    try { body = JSON.parse(body); } catch {}
   }
   const { public_id } = body || {};
   if (!public_id) {
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
         const doc = await fsRes.json();
         role = doc.fields?.role?.stringValue;
       }
-    } catch (err) {}
+    } catch {}
   }
 
   if (role !== 'owner' && role !== 'editor') {
