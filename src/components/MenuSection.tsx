@@ -1,20 +1,26 @@
 import React, { useState, useMemo } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
-import { Search, Utensils, AlertCircle, FileText, Check, Star } from 'lucide-react';
+import { Search, Utensils, AlertCircle, FileText, Check, Star, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { searchMatches } from '../lib/searchUtils';
 
 export const MenuSection: React.FC = () => {
   const { isRTL } = useLanguage();
   const { menuCategories, menuItems, siteSettings, sections, isPreviewMode, isLoading } = useData();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedTag, setSelectedTag] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [pdfRequested, setPdfRequested] = useState<boolean>(false);
 
   const visibleCategories = menuCategories.filter(c => c.visible).sort((a, b) => a.sort_order - b.sort_order);
 
-  // Filtered menu items
+  const totalVisibleCount = useMemo(() => {
+    return menuItems.filter(i => i.visible && (!i.is_sample || isPreviewMode)).length;
+  }, [menuItems, isPreviewMode]);
+
+  // Filtered menu items with Arabic text normalization & quick tags
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
       if (!item.visible) return false;
@@ -23,14 +29,39 @@ export const MenuSection: React.FC = () => {
         return false;
       }
       if (searchQuery.trim() !== '') {
-        const q = searchQuery.toLowerCase();
-        const matchEn = item.name_en.toLowerCase().includes(q) || item.description_en.toLowerCase().includes(q);
-        const matchAr = item.name_ar.toLowerCase().includes(q) || item.description_ar.toLowerCase().includes(q);
-        if (!matchEn && !matchAr) return false;
+        const matches = searchMatches(
+          searchQuery,
+          item.name_en,
+          item.name_ar,
+          item.description_en,
+          item.description_ar
+        );
+        if (!matches) return false;
+      }
+      if (selectedTag === 'signature') {
+        const isSig = item.is_signature || item.tags?.some(t => {
+          const tl = t.toLowerCase();
+          return tl === 'signature' || tl === 'most ordered' || t.includes('مميز') || t.includes('الأكثر طلباً');
+        });
+        if (!isSig) return false;
+      }
+      if (selectedTag === 'vegetarian') {
+        const isVeg = item.tags?.some(t => {
+          const tl = t.toLowerCase();
+          return tl === 'vegetarian' || t.includes('نباتي');
+        });
+        if (!isVeg) return false;
+      }
+      if (selectedTag === 'spicy') {
+        const isSpicy = item.tags?.some(t => {
+          const tl = t.toLowerCase();
+          return tl === 'spicy' || t.includes('حار');
+        });
+        if (!isSpicy) return false;
       }
       return true;
     }).sort((a, b) => a.sort_order - b.sort_order);
-  }, [menuItems, selectedCategory, searchQuery, isPreviewMode]);
+  }, [menuItems, selectedCategory, selectedTag, searchQuery, isPreviewMode]);
 
   const menuSec = sections.find(s => s.key === 'menu');
   if (menuSec && !menuSec.visible) {
@@ -62,16 +93,38 @@ export const MenuSection: React.FC = () => {
         {/* Search & Category Filter Controls */}
         <div className="menu-controls">
           {/* Search Bar */}
-          <div className="menu-search-box">
+          <div className="menu-search-box" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <Search size={18} className="menu-search-icon" aria-hidden="true" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={isRTL ? 'ابحث عن صنف أو مكون...' : 'Search dishes or ingredients...'}
+              placeholder={isRTL ? 'ابحث عن صنف أو مكون (طاجن، دجاج، قهوة، إفطار)...' : 'Search dishes or ingredients (tagine, chicken, coffee)...'}
               className="menu-search-input"
+              style={{ paddingInlineEnd: searchQuery ? '36px' : undefined }}
               aria-label="Search menu dishes"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label={isRTL ? 'مسح البحث' : 'Clear search'}
+                style={{
+                  position: 'absolute',
+                  insetInlineEnd: '10px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--color-text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
 
           {/* Category Tabs */}
@@ -97,6 +150,76 @@ export const MenuSection: React.FC = () => {
                 {isRTL ? cat.name_ar : cat.name_en}
               </button>
             ))}
+          </div>
+
+          {/* Quick Tag Filters */}
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {[
+              { id: 'all', label_en: 'All Tags', label_ar: 'كل الأطباق' },
+              { id: 'signature', label_en: '⭐ Most Ordered', label_ar: '⭐ الأكثر طلباً' },
+              { id: 'vegetarian', label_en: '🌱 Vegetarian', label_ar: '🌱 نباتي' },
+              { id: 'spicy', label_en: '🌶️ Spicy', label_ar: '🌶️ حار' },
+            ].map(tf => (
+              <button
+                key={tf.id}
+                type="button"
+                onClick={() => setSelectedTag(tf.id)}
+                style={{
+                  fontSize: '0.8125rem',
+                  padding: '5px 14px',
+                  borderRadius: '20px',
+                  border: selectedTag === tf.id ? '1.5px solid var(--color-gold)' : '1px solid #D1D5DB',
+                  background: selectedTag === tf.id ? 'var(--color-gold)' : '#FFFFFF',
+                  color: selectedTag === tf.id ? '#FFFFFF' : 'var(--color-charcoal)',
+                  cursor: 'pointer',
+                  fontWeight: selectedTag === tf.id ? 600 : 500,
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {isRTL ? tf.label_ar : tf.label_en}
+              </button>
+            ))}
+          </div>
+
+          {/* Result counter and reset button */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            maxWidth: '680px', 
+            margin: '0 auto', 
+            width: '100%',
+            fontSize: '0.8125rem', 
+            color: 'var(--color-text-muted)',
+            paddingInline: '4px'
+          }}>
+            <span>
+              {isRTL 
+                ? `عرض ${filteredItems.length} من أصل ${totalVisibleCount} صنف`
+                : `Showing ${filteredItems.length} of ${totalVisibleCount} dishes`}
+              {searchQuery && ` • ${isRTL ? 'نتائج البحث عن' : 'search for'} "${searchQuery}"`}
+            </span>
+            {(searchQuery || selectedCategory !== 'all' || selectedTag !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedCategory('all');
+                  setSelectedTag('all');
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-gold)',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  fontSize: '0.8125rem',
+                  padding: 0
+                }}
+              >
+                {isRTL ? 'إعادة ضبط الفلاتر' : 'Reset filters'}
+              </button>
+            )}
           </div>
         </div>
 

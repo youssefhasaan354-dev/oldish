@@ -46,10 +46,10 @@ export const SEED_SITE_SETTINGS: SiteSettings = {
   qr_logo_url: '',
   instagram_strip_enabled: false, // Default OFF while images are AI
   // Announcement Banner
-  announcement_enabled: false,
+  announcement_enabled: true,
   announcement_text_en: "Special Downtown Evenings — Authentic Egyptian Tagines & Vintage Garden Vibe",
   announcement_text_ar: "أمسيات وسط البلد المميزة — طواجن مصرية أصيلة وأجواء حديقة عتيقة",
-  announcement_link: "#menu",
+  announcement_link: "#reservations",
   announcement_start_date: "",
   announcement_end_date: "",
   // Local Click Analytics

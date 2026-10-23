@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
-import { Phone, Calendar, Clock, Users, User, Mail, CheckCircle, AlertTriangle, Send, MessageCircle } from 'lucide-react';
+import { Phone, Calendar, Clock, Users, User, Mail, CheckCircle, AlertTriangle, Send, MessageCircle, Loader2, WifiOff } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -32,8 +32,13 @@ export const ReservationSection: React.FC = () => {
   const [errors, setErrors] = useState<{ name?: string; phone?: string }>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSlowNetwork, setIsSlowNetwork] = useState(false);
+  const [isOfflineQueued, setIsOfflineQueued] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+
+  // Synchronous double-submission lock ref (guards against fast multi-taps)
+  const isSubmittingRef = React.useRef(false);
 
   // Minimum fill time protection (3s minimum)
   const formRenderTime = React.useRef<number | null>(null);
@@ -101,6 +106,12 @@ export const ReservationSection: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Double Submission Guard: block synchronous rapid double-clicks
+    if (isSubmittingRef.current || isSubmitting) {
+      return;
+    }
+
     const newErrors: { name?: string; phone?: string } = {};
     if (!form.name.trim()) {
       newErrors.name = isRTL ? 'يرجى كتابة الاسم' : 'Please provide your name';
@@ -133,64 +144,86 @@ export const ReservationSection: React.FC = () => {
 
     setErrors({});
     setSubmitError(null);
+    setIsOfflineQueued(false);
+
+    // Lock submission synchronously and start slow connection watchdog
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
+    setIsSlowNetwork(false);
 
-    // Optional Turnstile server-side verification if site key is configured
-    if (turnstileSiteKey) {
-      if (!turnstileToken) {
-        setIsSubmitting(false);
-        setSubmitError(
-          isRTL 
-            ? 'يرجى التحقق الأمني من كلاودفلير (Turnstile) للمتابعة.' 
-            : 'Please complete the Cloudflare security verification.'
-        );
-        return;
-      }
+    const slowTimer = setTimeout(() => {
+      setIsSlowNetwork(true);
+    }, 2500);
 
-      try {
-        const verifyRes = await fetch('/api/verify-turnstile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: turnstileToken })
-        });
-        if (!verifyRes.ok) {
-          setIsSubmitting(false);
+    try {
+      // Optional Turnstile server-side verification if site key is configured
+      if (turnstileSiteKey) {
+        if (!turnstileToken) {
           setSubmitError(
             isRTL 
-              ? 'فشل التحقق الأمني. يرجى المحاولة مجدداً أو الاتصال بنا مباشرة.' 
-              : 'Security verification failed. Please try again or call us directly.'
+              ? 'يرجى التحقق الأمني من كلاودفلير (Turnstile) للمتابعة.' 
+              : 'Please complete the Cloudflare security verification.'
           );
           return;
         }
-      } catch (err) {
-        console.warn('Turnstile verify error:', err);
+
+        try {
+          const verifyRes = await fetch('/api/verify-turnstile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: turnstileToken })
+          });
+          if (!verifyRes.ok) {
+            setSubmitError(
+              isRTL 
+                ? 'فشل التحقق الأمني. يرجى المحاولة مجدداً أو الاتصال بنا مباشرة.' 
+                : 'Security verification failed. Please try again or call us directly.'
+            );
+            return;
+          }
+        } catch (err) {
+          console.warn('Turnstile verify error:', err);
+        }
       }
-    }
 
-    const res = await submitInquiry({
-      type: form.type,
-      name: form.name,
-      phone: form.phone,
-      email: form.email,
-      date: form.date,
-      time: form.time,
-      guests: form.guests,
-      message: form.message,
-      branch: 'Downtown Cairo',
-      honeypot: form.honeypot
-    });
+      const res = await submitInquiry({
+        type: form.type,
+        name: form.name,
+        phone: form.phone,
+        email: form.email,
+        date: form.date,
+        time: form.time,
+        guests: form.guests,
+        message: form.message,
+        branch: 'Downtown Cairo',
+        honeypot: form.honeypot
+      });
 
-    setIsSubmitting(false);
-
-    if (res.success) {
-      setIsSubmitted(true);
-      setSubmitError(null);
-    } else {
-      setSubmitError(
-        isRTL 
-          ? 'تعذر إرسال طلب الحجز إلى النظام حالياً. يرجى الاتصال بنا هاتفياً أو مراسلتنا عبر واتساب لتأكيد حجزك فوراً:' 
-          : 'Could not submit your reservation request to the server. Please call us directly or message via WhatsApp to confirm your table:'
-      );
+      if (res.success) {
+        setIsSubmitted(true);
+        setSubmitError(null);
+      } else {
+        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+        if (isOffline) {
+          setIsOfflineQueued(true);
+          setSubmitError(
+            isRTL 
+              ? 'أنت غير متصل بالإنترنت حالياً. تم حفظ بيانات حجزك محلياً في جهازك وسيتم إرسالها تلقائياً فور عودة الاتصال. لتأكيد حجزك فوراً يمكنك الاتصال أو مراسلتنا عبر واتساب:'
+              : 'You are currently offline. Your reservation details are saved locally on your device and will be sent automatically once reconnected. To confirm immediately, please call or message via WhatsApp:'
+          );
+        } else {
+          setSubmitError(
+            isRTL 
+              ? 'تعذر إرسال طلب الحجز إلى النظام حالياً. يرجى الاتصال بنا هاتفياً أو مراسلتنا عبر واتساب لتأكيد حجزك فوراً:' 
+              : 'Could not submit your reservation request to the server. Please call us directly or message via WhatsApp to confirm your table:'
+          );
+        }
+      }
+    } finally {
+      clearTimeout(slowTimer);
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+      setIsSlowNetwork(false);
     }
   };
 
@@ -366,20 +399,26 @@ export const ReservationSection: React.FC = () => {
                 <div 
                   className="reservation-error-box"
                   style={{
-                    background: '#FFF5F5',
-                    border: '1px solid #FEB2B2',
+                    background: isOfflineQueued ? '#FFFAF0' : '#FFF5F5',
+                    border: isOfflineQueued ? '1px solid #FEEBC8' : '1px solid #FEB2B2',
                     borderRadius: '8px',
                     padding: '16px 20px',
                     marginBottom: '20px',
-                    color: '#9B2C2C',
+                    color: isOfflineQueued ? '#744210' : '#9B2C2C',
                     lineHeight: 1.6
                   }}
                   role="alert"
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                    <AlertTriangle size={20} style={{ color: '#E53E3E', flexShrink: 0 }} />
-                    <strong style={{ fontSize: '1rem' }}>
-                      {isRTL ? 'تنبيه في إرسال طلب الحجز' : 'Submission Alert'}
+                    {isOfflineQueued ? (
+                      <WifiOff size={20} style={{ color: '#D69E2E', flexShrink: 0 }} />
+                    ) : (
+                      <AlertTriangle size={20} style={{ color: '#E53E3E', flexShrink: 0 }} />
+                    )}
+                    <strong style={{ fontSize: '1rem', color: isOfflineQueued ? '#744210' : '#9B2C2C' }}>
+                      {isOfflineQueued 
+                        ? (isRTL ? 'حفظ الحجز في قائمة الانتظار (دون اتصال)' : 'Reservation Saved to Offline Queue')
+                        : (isRTL ? 'تنبيه في إرسال طلب الحجز' : 'Submission Alert')}
                     </strong>
                   </div>
                   <p style={{ margin: '0 0 12px 0', fontSize: '0.875rem' }}>
@@ -569,35 +608,71 @@ export const ReservationSection: React.FC = () => {
                 />
               )}
 
-              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="btn btn-secondary"
-                  style={{ minWidth: '220px' }}
-                >
-                  <Send size={15} />
-                  <span>{isSubmitting ? (isRTL ? 'جارٍ الإرسال...' : 'Sending...') : (isRTL ? 'إرسال طلب الحجز' : 'Send Reservation Request')}</span>
-                </button>
+              <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="btn btn-secondary"
+                    style={{ 
+                      minWidth: '220px',
+                      opacity: isSubmitting ? 0.75 : 1,
+                      cursor: isSubmitting ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 size={16} className="spin-icon" />
+                        <span>
+                          {isSlowNetwork 
+                            ? (isRTL ? 'الشبكة بطيئة... جاري الحفظ' : 'Slow network... saving') 
+                            : (isRTL ? 'جارٍ إرسال الطلب...' : 'Sending Request...')}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={15} />
+                        <span>{isRTL ? 'إرسال طلب الحجز' : 'Send Reservation Request'}</span>
+                      </>
+                    )}
+                  </button>
 
-                <a
-                  href={getWhatsAppBookingUrl()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-outline-gold"
-                  style={{ 
-                    minWidth: '220px', 
-                    display: 'inline-flex', 
+                  <a
+                    href={getWhatsAppBookingUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline-gold"
+                    style={{ 
+                      minWidth: '220px', 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      gap: '8px',
+                      borderColor: '#25D366',
+                      color: '#1b743b'
+                    }}
+                  >
+                    <MessageCircle size={16} style={{ color: '#25D366' }} />
+                    <span>{isRTL ? 'احجز عبر واتساب' : 'Book via WhatsApp'}</span>
+                  </a>
+                </div>
+
+                {/* Slow Mobile Network Helper Message */}
+                {isSlowNetwork && isSubmitting && (
+                  <div style={{ 
+                    fontSize: '0.8125rem', 
+                    color: '#B7791F', 
+                    background: 'rgba(214, 158, 46, 0.12)', 
+                    padding: '6px 14px', 
+                    borderRadius: '20px', 
+                    display: 'flex', 
                     alignItems: 'center', 
-                    justifyContent: 'center', 
-                    gap: '8px',
-                    borderColor: '#25D366',
-                    color: '#1b743b'
-                  }}
-                >
-                  <MessageCircle size={16} style={{ color: '#25D366' }} />
-                  <span>{isRTL ? 'احجز عبر واتساب' : 'Book via WhatsApp'}</span>
-                </a>
+                    gap: '6px' 
+                  }}>
+                    <Loader2 size={13} className="spin-icon" />
+                    <span>{isRTL ? 'استجابة الشبكة تستغرق وقتاً أطول، جاري تأمين حفظ طلبك...' : 'Connection is taking longer than usual, securing your request...'}</span>
+                  </div>
+                )}
               </div>
             </form>
           )}

@@ -12,12 +12,14 @@ import {
   Star, 
   AlertCircle, 
   Printer, 
-  MessageCircle
+  MessageCircle,
+  X
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useNoIndex } from '../lib/seo';
 import { EditableImageSlot } from '../components/EditableImageSlot';
 import { DemoBanner } from '../components/DemoBanner';
+import { searchMatches } from '../lib/searchUtils';
 
 export const PublicMenuPage: React.FC = () => {
   useNoIndex();
@@ -29,6 +31,10 @@ export const PublicMenuPage: React.FC = () => {
 
   const visibleCategories = menuCategories.filter(c => c.visible).sort((a, b) => a.sort_order - b.sort_order);
 
+  const totalVisibleCount = useMemo(() => {
+    return menuItems.filter(i => i.visible && (!i.is_sample || isPreviewMode)).length;
+  }, [menuItems, isPreviewMode]);
+
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
       if (!item.visible) return false;
@@ -37,10 +43,14 @@ export const PublicMenuPage: React.FC = () => {
         return false;
       }
       if (searchQuery.trim() !== '') {
-        const q = searchQuery.toLowerCase();
-        const matchEn = item.name_en.toLowerCase().includes(q) || item.description_en.toLowerCase().includes(q);
-        const matchAr = item.name_ar.toLowerCase().includes(q) || item.description_ar.toLowerCase().includes(q);
-        if (!matchEn && !matchAr) return false;
+        const matches = searchMatches(
+          searchQuery,
+          item.name_en,
+          item.name_ar,
+          item.description_en,
+          item.description_ar
+        );
+        if (!matches) return false;
       }
       if (selectedTag === 'signature') {
         const isSig = item.is_signature || item.tags?.some(t => {
@@ -224,16 +234,42 @@ export const PublicMenuPage: React.FC = () => {
       <div className="sticky-menu-nav no-print">
         <div className="container">
           <div style={{ paddingBottom: '10px' }}>
-            <div className="menu-search-box" style={{ maxWidth: '100%' }}>
+            <div className="menu-search-box" style={{ maxWidth: '100%', position: 'relative', display: 'flex', alignItems: 'center' }}>
               <Search size={16} className="menu-search-icon" aria-hidden="true" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={isRTL ? 'ابحث في أصناف القائمة...' : 'Search menu items...'}
+                placeholder={isRTL ? 'ابحث في أصناف القائمة (طاجن، دجاج، قهوة، إفطار)...' : 'Search dishes, drinks, or ingredients...'}
                 className="menu-search-input"
-                style={{ paddingBlock: '8px', fontSize: '0.875rem' }}
+                style={{ 
+                  paddingBlock: '9px', 
+                  paddingInlineEnd: searchQuery ? '36px' : '12px', 
+                  fontSize: '0.875rem',
+                  width: '100%'
+                }}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label={isRTL ? 'مسح البحث' : 'Clear search'}
+                  style={{
+                    position: 'absolute',
+                    insetInlineEnd: '8px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#888',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <X size={15} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -290,6 +326,44 @@ export const PublicMenuPage: React.FC = () => {
                 {isRTL ? tf.label_ar : tf.label_en}
               </button>
             ))}
+          </div>
+
+          {/* Search Result Status & Counter */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginTop: '8px', 
+            fontSize: '0.75rem', 
+            color: 'var(--color-text-muted)' 
+          }}>
+            <span>
+              {isRTL 
+                ? `عرض ${filteredItems.length} من أصل ${totalVisibleCount} صنف`
+                : `Showing ${filteredItems.length} of ${totalVisibleCount} dishes`}
+              {searchQuery && ` • ${isRTL ? 'نتائج البحث عن' : 'search for'} "${searchQuery}"`}
+            </span>
+            {(searchQuery || selectedCategory !== 'all' || selectedTag !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedCategory('all');
+                  setSelectedTag('all');
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-gold)',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  fontSize: '0.75rem',
+                  padding: 0
+                }}
+              >
+                {isRTL ? 'إعادة ضبط التصفية' : 'Reset filters'}
+              </button>
+            )}
           </div>
         </div>
       </div>

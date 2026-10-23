@@ -380,6 +380,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   try {
                     await submitInquiryToFirestore(item);
                     flushed.push(item);
+                    // Notify owner of flushed offline booking
+                    try {
+                      fetch('/api/notify-inquiry', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(item)
+                      }).catch(e => console.warn('Flushed inquiry notify note:', e));
+                    } catch {}
                   } catch {
                     remaining.push(item);
                   }

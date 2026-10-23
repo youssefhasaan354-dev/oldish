@@ -16,8 +16,10 @@ export default async function handler(req, res) {
   const windowMs = 5 * 60 * 1000;
   const maxHits = 5;
 
-  const currentHits = (ipHits.get(clientIp) || []).filter(t => now - t < windowMs);
+  res.setHeader('X-RateLimit-Limit', String(maxHits));
+  res.setHeader('X-RateLimit-Remaining', String(Math.max(0, maxHits - currentHits.length - 1)));
   if (currentHits.length >= maxHits) {
+    res.setHeader('Retry-After', '60');
     return res.status(429).json({ error: 'Too many requests. Please try again later.' });
   }
   currentHits.push(now);

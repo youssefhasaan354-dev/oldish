@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { 
@@ -11,7 +11,11 @@ import {
   ArrowRight,
   ExternalLink,
   ShieldCheck,
-  Sparkles
+  Sparkles,
+  Calendar,
+  Clock,
+  Users,
+  Bell
 } from 'lucide-react';
 
 interface Props {
@@ -30,7 +34,30 @@ export const AdminDashboardHome: React.FC<Props> = ({ onNavigateTab }) => {
   } = useData();
   const { user, role } = useAuth();
 
-  const unreadInquiries = inquiries.filter(i => i.status === 'new').length;
+  const [todayStr] = useState(() => new Date().toISOString().split('T')[0]);
+  const [todayFormatted] = useState(() => 
+    new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  );
+  
+  const pendingInquiries = useMemo(() => inquiries.filter(i => i.status === 'new'), [inquiries]);
+  const pendingCount = pendingInquiries.length;
+
+  const todayBookings = useMemo(() => {
+    return inquiries.filter(i => 
+      (i.type === 'reservation_request' || !i.type) && 
+      (i.date === todayStr || (i.created_at && i.created_at.startsWith(todayStr)))
+    );
+  }, [inquiries, todayStr]);
+
+  const handledCount = useMemo(() => {
+    return inquiries.filter(i => i.status === 'handled').length;
+  }, [inquiries]);
+
+  const eventInquiriesCount = useMemo(() => {
+    return inquiries.filter(i => i.type === 'event_request').length;
+  }, [inquiries]);
+
+  const unreadInquiries = pendingCount;
   const aiMediaCount = mediaList.filter(m => m.is_ai).length;
   const unconfirmedBranches = branches.filter(b => b.status === 'unconfirmed').length;
 
@@ -115,6 +142,180 @@ export const AdminDashboardHome: React.FC<Props> = ({ onNavigateTab }) => {
                 آخر نشر: {new Date(lastVersion.created_at).toLocaleDateString('ar-EG')}
               </span>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Urgent Operational Alert if pending requests exist */}
+      {pendingCount > 0 && (
+        <div 
+          style={{
+            background: 'linear-gradient(90deg, #FFF5F5 0%, #FED7D7 100%)',
+            border: '1px solid #FEB2B2',
+            borderRadius: '8px',
+            padding: '14px 20px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ background: '#E53E3E', color: '#FFF', borderRadius: '50%', padding: '8px', display: 'flex' }}>
+              <Bell size={18} />
+            </div>
+            <div>
+              <strong style={{ color: '#9B2C2C', fontSize: '0.9375rem' }}>
+                تنبيه تشغيلي عاجل: يوجد {pendingCount} طلب حجز أو استفسار بانتظار التأكيد والمتابعة
+              </strong>
+              <div style={{ fontSize: '0.8125rem', color: '#C53030' }}>
+                يُفضل الرد سريعاً لضمان أفضل تجربة للضيوف وتأكيد حجوزات الطاولات.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            style={{ background: '#C53030', borderColor: '#C53030' }}
+            onClick={() => onNavigateTab('inquiries')}
+          >
+            <span>مراجعة الطلبات المعلقة ({pendingCount})</span>
+            <ArrowRight size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Daily Operations Quick Metrics (Task 5) */}
+      <div className="admin-card" style={{ marginBottom: '20px' }}>
+        <div className="admin-card-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Calendar size={20} style={{ color: 'var(--color-gold)' }} />
+            <h3 style={{ margin: 0, fontSize: '1.125rem' }}>
+              مؤشرات الأداء والتشغيل اليومي (Daily Operations KPIs)
+            </h3>
+          </div>
+          <span style={{ fontSize: '0.75rem', color: '#718096' }}>
+            تاريخ اليوم: {todayFormatted}
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+          {/* Card 1: Today's Bookings */}
+          <div 
+            style={{ 
+              background: '#F0F9FF', 
+              border: '1px solid #BAE6FD', 
+              borderRadius: '6px', 
+              padding: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px'
+            }}
+          >
+            <div style={{ background: '#0284C7', color: '#FFF', borderRadius: '8px', padding: '10px', display: 'flex' }}>
+              <Clock size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: '1.625rem', fontWeight: 700, color: '#0369A1', lineHeight: 1 }}>
+                {todayBookings.length}
+              </div>
+              <div style={{ fontSize: '0.8125rem', color: '#0284C7', fontWeight: 600, marginTop: '4px' }}>
+                حجوزات اليوم
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: '#64748B' }}>
+                طاولات مجدولة لتاريخ اليوم
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Pending Unhandled Inquiries */}
+          <div 
+            onClick={() => onNavigateTab('inquiries')}
+            style={{ 
+              background: pendingCount > 0 ? '#FEF2F2' : '#F8FAFC', 
+              border: pendingCount > 0 ? '1px solid #FECACA' : '1px solid #E2E8F0', 
+              borderRadius: '6px', 
+              padding: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              cursor: 'pointer'
+            }}
+          >
+            <div style={{ background: pendingCount > 0 ? '#DC2626' : '#94A3B8', color: '#FFF', borderRadius: '8px', padding: '10px', display: 'flex' }}>
+              <Inbox size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: '1.625rem', fontWeight: 700, color: pendingCount > 0 ? '#B91C1C' : '#475569', lineHeight: 1 }}>
+                {pendingCount}
+              </div>
+              <div style={{ fontSize: '0.8125rem', color: pendingCount > 0 ? '#DC2626' : '#64748B', fontWeight: 600, marginTop: '4px' }}>
+                طلبات معلقة
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: '#64748B' }}>
+                بانتظار التأكيد مع الزبائن
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Handled Inquiries */}
+          <div 
+            style={{ 
+              background: '#F0FDF4', 
+              border: '1px solid #BBF7D0', 
+              borderRadius: '6px', 
+              padding: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px'
+            }}
+          >
+            <div style={{ background: '#16A34A', color: '#FFF', borderRadius: '8px', padding: '10px', display: 'flex' }}>
+              <CheckCircle2 size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: '1.625rem', fontWeight: 700, color: '#15803D', lineHeight: 1 }}>
+                {handledCount}
+              </div>
+              <div style={{ fontSize: '0.8125rem', color: '#16A34A', fontWeight: 600, marginTop: '4px' }}>
+                طلبات تمت معالجتها
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: '#64748B' }}>
+                تم التواصل وتأكيد الحضور
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: Event & Group Bookings */}
+          <div 
+            onClick={() => onNavigateTab('inquiries')}
+            style={{ 
+              background: '#FAF5FF', 
+              border: '1px solid #E9D5FF', 
+              borderRadius: '6px', 
+              padding: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              cursor: 'pointer'
+            }}
+          >
+            <div style={{ background: '#9333EA', color: '#FFF', borderRadius: '8px', padding: '10px', display: 'flex' }}>
+              <Users size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: '1.625rem', fontWeight: 700, color: '#7E22CE', lineHeight: 1 }}>
+                {eventInquiriesCount}
+              </div>
+              <div style={{ fontSize: '0.8125rem', color: '#9333EA', fontWeight: 600, marginTop: '4px' }}>
+                مناسبات ومجموعات
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: '#64748B' }}>
+                فعاليات واجتماعات خاصة
+              </div>
+            </div>
           </div>
         </div>
       </div>
