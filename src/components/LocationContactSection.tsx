@@ -23,6 +23,10 @@ export const LocationContactSection: React.FC = () => {
       setErrorMsg(isRTL ? 'يرجى كتابة الاسم والرسالة' : 'Please provide your name and a message');
       return;
     }
+    if (!contactForm.phone.trim() || contactForm.phone.trim().length < 6) {
+      setErrorMsg(isRTL ? 'يرجى إدخال رقم هاتف صحيح (6 أرقام على الأقل)' : 'Please provide a valid phone number (at least 6 digits)');
+      return;
+    }
 
     setErrorMsg('');
     setIsSending(true);
@@ -276,7 +280,7 @@ export const LocationContactSection: React.FC = () => {
 
                 <div className="form-group" style={{ marginBottom: '12px' }}>
                   <label htmlFor="contact-phone" className="form-label">
-                    {isRTL ? 'رقم الهاتف' : 'Phone'}
+                    {isRTL ? 'رقم الهاتف' : 'Phone'} *
                   </label>
                   <input
                     id="contact-phone"
@@ -284,6 +288,8 @@ export const LocationContactSection: React.FC = () => {
                     value={contactForm.phone}
                     onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
                     className="form-input"
+                    placeholder="+20 1X XXXX XXXX"
+                    required
                   />
                 </div>
 
