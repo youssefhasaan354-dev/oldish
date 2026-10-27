@@ -1,6 +1,19 @@
 // In-memory rate limiting map: ip -> array of timestamps
 const ipHits = new Map();
 
+/**
+ * Escapes characters that have special meaning in Telegram HTML parse_mode.
+ * Telegram HTML supports: <b>, <i>, <u>, <s>, <a>, <code>, <pre>
+ * Only & < > must be escaped in text content.
+ */
+function escapeHtml(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -15,6 +28,9 @@ export default async function handler(req, res) {
   const now = Date.now();
   const windowMs = 5 * 60 * 1000;
   const maxHits = 5;
+
+  // FIX: define currentHits before use (same pattern as verify-turnstile.js)
+  const currentHits = (ipHits.get(clientIp) || []).filter(t => now - t < windowMs);
 
   res.setHeader('X-RateLimit-Limit', String(maxHits));
   res.setHeader('X-RateLimit-Remaining', String(Math.max(0, maxHits - currentHits.length - 1)));
@@ -78,24 +94,25 @@ export default async function handler(req, res) {
   };
 
   // 3. Telegram Notification (Optional)
+  // Uses HTML parse_mode so user-supplied text is escaped — * _ [ ` cannot break the message
   const tgToken = process.env.TELEGRAM_BOT_TOKEN;
   const tgChatId = process.env.TELEGRAM_CHAT_ID;
 
   if (tgToken && tgChatId) {
     try {
-      const tgText = [
-        `🛎 *طلب جديد في مطعم وكافيه أولديش*`,
+      const tgLines = [
+        `🛎 <b>طلب جديد في مطعم وكافيه أولديش</b>`,
         `────────────────────`,
-        `📌 *النوع / Type:* ${typeTitle}`,
-        `👤 *الاسم / Name:* ${name}`,
-        `📞 *الهاتف / Phone:* ${phone}`,
-        email ? `✉️ *البريد / Email:* ${email}` : null,
-        date ? `📅 *التاريخ / Date:* ${date} ${time ? `(${time})` : ''}` : null,
-        guests ? `👥 *العدد / Guests:* ${guests}` : null,
-        branch ? `📍 *الفرع / Branch:* ${branch}` : null,
-        message ? `💬 *ملاحظات / Message:* ${message}` : null,
+        `📌 <b>النوع / Type:</b> ${escapeHtml(typeTitle)}`,
+        `👤 <b>الاسم / Name:</b> ${escapeHtml(name)}`,
+        `📞 <b>الهاتف / Phone:</b> ${escapeHtml(phone)}`,
+        email ? `✉️ <b>البريد / Email:</b> ${escapeHtml(email)}` : null,
+        date ? `📅 <b>التاريخ / Date:</b> ${escapeHtml(date)}${time ? ` (${escapeHtml(time)})` : ''}` : null,
+        guests ? `👥 <b>العدد / Guests:</b> ${escapeHtml(guests)}` : null,
+        branch ? `📍 <b>الفرع / Branch:</b> ${escapeHtml(branch)}` : null,
+        message ? `💬 <b>ملاحظات / Message:</b> ${escapeHtml(message)}` : null,
         `────────────────────`,
-        `⏰ *التوقيت:* ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}`
+        `⏰ <b>التوقيت:</b> ${escapeHtml(new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' }))}`
       ].filter(Boolean).join('\n');
 
       const tgRes = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
@@ -103,8 +120,8 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: tgChatId,
-          text: tgText,
-          parse_mode: 'Markdown'
+          text: tgLines,
+          parse_mode: 'HTML'
         })
       });
 
