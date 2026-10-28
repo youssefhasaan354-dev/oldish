@@ -1,4 +1,5 @@
-import admin from 'firebase-admin';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 let dbInstance = null;
 
@@ -13,14 +14,15 @@ export function setAdminFirestoreForTesting(mock) {
 /**
  * Returns an initialized Firestore instance using the service account credentials
  * from process.env.FIREBASE_SERVICE_ACCOUNT_JSON.
- * @returns {admin.firestore.Firestore}
+ * Uses the modular firebase-admin entry points, which work in Vercel's ESM runtime.
+ * @returns {import('firebase-admin/firestore').Firestore}
  */
 export function getAdminFirestore() {
   if (dbInstance) {
     return dbInstance;
   }
 
-  if (admin.apps.length === 0) {
+  if (getApps().length === 0) {
     const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
     if (!raw) {
       throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not configured');
@@ -33,11 +35,16 @@ export function getAdminFirestore() {
       throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT_JSON: ' + err.message);
     }
 
-    admin.initializeApp({
-      credential: admin.credential.cert(credentials)
+    // Some tools store the key with literal "\n" sequences; normalise to real newlines.
+    if (typeof credentials.private_key === 'string') {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+    }
+
+    initializeApp({
+      credential: cert(credentials)
     });
   }
 
-  dbInstance = admin.firestore();
+  dbInstance = getFirestore();
   return dbInstance;
 }
