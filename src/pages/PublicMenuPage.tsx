@@ -222,6 +222,13 @@ export const PublicMenuPage: React.FC = () => {
       : 'Hello! I would like to inquire about Oldish menu items.'
   );
 
+  const downtownBranch = branches.find(b => b.id === 'downtown-main') || branches[0];
+  const zamalekBranch = branches.find(b => b.id === 'zamalek-secondary') || branches[1];
+  const dtPhone = downtownBranch?.phone || '01060119488';
+  const zmPhone = zamalekBranch?.phone || '01000665331';
+  const cleanDtPhone = dtPhone.replace(/\s+/g, '');
+  const cleanZmPhone = zmPhone.replace(/\s+/g, '');
+
   return (
     <main id="main-content" className="standalone-menu-view">
       <a href="#main-content" className="skip-to-content">
@@ -302,7 +309,9 @@ export const PublicMenuPage: React.FC = () => {
       <div className="print-only" style={{ display: 'none', textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid #886E42', paddingBottom: '12px' }}>
         <h1 style={{ fontSize: '24pt', margin: 0, fontFamily: 'serif', color: '#111' }}>Oldish — أولديش</h1>
         <p style={{ margin: '4px 0', fontSize: '10pt', color: '#555' }}>
-          وسط البلد: 20 شارع محمد محمود، خلف الجريك كامبس (01060119488) • الزمالك: 14 شارع طه حسين تقاطع المرعشلي (01000665331)
+          {isRTL 
+            ? `وسط البلد: 20 شارع محمد محمود، خلف الجريك كامبس (${dtPhone}) • الزمالك: 14 شارع طه حسين تقاطع المرعشلي (${zmPhone})`
+            : `Downtown: 20 Mohamed Mahmoud St (${dtPhone}) • Zamalek: 14 Taha Hussein St (${zmPhone})`}
         </p>
         <p style={{ margin: 0, fontSize: '9pt', color: '#777' }}>
           الأسعار بالجنيه المصري (EGP) شاملة ومحدثة بحسب القائمة المرجعية
@@ -313,22 +322,22 @@ export const PublicMenuPage: React.FC = () => {
       <div className="container no-print" style={{ paddingBlock: '16px', textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <a 
-            href="tel:01060119488" 
+            href={`tel:${cleanDtPhone}`} 
             onClick={() => trackClick('calls')}
             className="btn btn-primary btn-sm"
           >
             <Phone size={14} />
-            <span>{isRTL ? 'وسط البلد: 01060119488' : 'Downtown: 01060119488'}</span>
+            <span>{isRTL ? `وسط البلد: ${dtPhone}` : `Downtown: ${dtPhone}`}</span>
           </a>
 
           <a 
-            href="tel:01000665331" 
+            href={`tel:${cleanZmPhone}`} 
             onClick={() => trackClick('calls')}
             className="btn btn-primary btn-sm"
             style={{ background: '#222222', borderColor: '#222222' }}
           >
             <Phone size={14} />
-            <span>{isRTL ? 'الزمالك: 01000665331' : 'Zamalek: 01000665331'}</span>
+            <span>{isRTL ? `الزمالك: ${zmPhone}` : `Zamalek: ${zmPhone}`}</span>
           </a>
 
           {hasWhatsapp && (
@@ -804,10 +813,10 @@ export const PublicMenuPage: React.FC = () => {
             Oldish • أولديش
           </div>
           <div>
-            <strong>{isRTL ? 'فرع وسط البلد:' : 'Downtown Branch:'}</strong> {isRTL ? '20 شارع محمد محمود، خلف الجريك كامبس، عابدين' : '20 Mohamed Mahmoud St, behind Greek Campus, Abdeen'} • {isRTL ? 'هاتف:' : 'Tel:'} <a href="tel:01060119488" style={{ color: '#E0DDD7' }}>01060119488</a>
+            <strong>{isRTL ? 'فرع وسط البلد:' : 'Downtown Branch:'}</strong> {isRTL ? '20 شارع محمد محمود، خلف الجريك كامبس، عابدين' : '20 Mohamed Mahmoud St, behind Greek Campus, Abdeen'} • {isRTL ? 'هاتف:' : 'Tel:'} <a href={`tel:${cleanDtPhone}`} style={{ color: '#E0DDD7' }}>{dtPhone}</a>
           </div>
           <div>
-            <strong>{isRTL ? 'فرع الزمالك:' : 'Zamalek Branch:'}</strong> {isRTL ? '14 شارع طه حسين تقاطع المرعشلي بجوار كنيسة العذراء مريم' : '14 Taha Hussein St at Maraachli St, next to Virgin Mary Church'} • {isRTL ? 'هاتف:' : 'Tel:'} <a href="tel:01000665331" style={{ color: '#E0DDD7' }}>01000665331</a>
+            <strong>{isRTL ? 'فرع الزمالك:' : 'Zamalek Branch:'}</strong> {isRTL ? '14 شارع طه حسين تقاطع المرعشلي بجوار كنيسة العذراء مريم' : '14 Taha Hussein St at Maraachli St, next to Virgin Mary Church'} • {isRTL ? 'هاتف:' : 'Tel:'} <a href={`tel:${cleanZmPhone}`} style={{ color: '#E0DDD7' }}>{zmPhone}</a>
           </div>
           <div style={{ fontSize: '0.75rem', color: '#777', marginTop: '6px' }}>
             {isRTL ? 'المطبخ المصري التراثي • يومياً من 8:00 صباحاً حتى 12:00 منتصف الليل' : 'Authentic Egyptian Cuisine • Every day 8:00 AM – 12:00 AM'}

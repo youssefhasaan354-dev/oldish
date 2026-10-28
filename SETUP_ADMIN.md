@@ -99,33 +99,11 @@ service cloud.firestore {
       allow write: if isOwner();
     }
 
-    // 5. استفسارات الزوار - إنشاء متاح للجميع مع تحقق صارم من صحة الحقول والمفاتيح وتنسيق الهواتف والتواريخ لمنع حقن البيانات
+    // 5. استفسارات الزوار وحجوزات الطاولات
+    // الكتابة محصورة بالسيرفر فقط عبر Firebase Admin SDK في (/api/submit-inquiry) لحماية Turnstile وتحديد المعدل
+    // القراءة والتحديث والأرشفة محصورة بالمدراء المعتمدين فقط
     match /inquiries/{inquiryId} {
-      allow create: if 
-        request.resource.data.keys().hasOnly([
-          'id', 'type', 'name', 'phone', 'email', 'date', 'time', 'guests', 'message', 'status', 'created_at', 'branch', 'honeypot'
-        ]) &&
-        request.resource.data.id is string &&
-        request.resource.data.id.size() <= 100 &&
-        request.resource.data.type in ['reservation_request', 'event_request', 'contact_inquiry'] &&
-        request.resource.data.name is string &&
-        request.resource.data.name.size() > 1 &&
-        request.resource.data.name.size() <= 100 &&
-        request.resource.data.phone is string &&
-        request.resource.data.phone.size() >= 6 &&
-        request.resource.data.phone.size() <= 30 &&
-        request.resource.data.phone.matches('^\\+?[0-9\\s\\-\\(\\)]{6,30}$') &&
-        request.resource.data.status == 'new' &&
-        request.resource.data.created_at is string &&
-        request.resource.data.created_at.size() <= 50 &&
-        (!('message' in request.resource.data) || request.resource.data.message == null || (request.resource.data.message is string && request.resource.data.message.size() <= 1000)) &&
-        (!('email' in request.resource.data) || request.resource.data.email == null || request.resource.data.email == '' || (request.resource.data.email is string && request.resource.data.email.size() <= 100 && request.resource.data.email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'))) &&
-        (!('branch' in request.resource.data) || request.resource.data.branch == null || (request.resource.data.branch is string && request.resource.data.branch.size() <= 100)) &&
-        (!('date' in request.resource.data) || request.resource.data.date == null || request.resource.data.date == '' || (request.resource.data.date is string && request.resource.data.date.size() <= 30 && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))) &&
-        (!('time' in request.resource.data) || request.resource.data.time == null || request.resource.data.time == '' || (request.resource.data.time is string && request.resource.data.time.size() <= 20 && request.resource.data.time.matches('^[0-9]{1,2}:[0-9]{2}(\\s?(AM|PM|am|pm))?$'))) &&
-        (!('guests' in request.resource.data) || request.resource.data.guests == null || (request.resource.data.guests is string && request.resource.data.guests.size() <= 20)) &&
-        (!('honeypot' in request.resource.data) || request.resource.data.honeypot == null || (request.resource.data.honeypot is string && request.resource.data.honeypot.size() <= 100));
-        
+      allow create: if false; // Server-side only via Firebase Admin SDK
       allow read, update, delete: if isAdmin();
     }
   }
@@ -152,6 +130,9 @@ service cloud.firestore {
 | `VITE_FIREBASE_AUTH_DOMAIN` | Client (عام) | نطاق المصادقة لمشروع `oldish-1.firebaseapp.com` |
 | `VITE_FIREBASE_PROJECT_ID` | Client (عام) | معرف المشروع `oldish-1` |
 | `VITE_FIREBASE_APP_ID` | Client (عام) | معرف التطبيق Web App ID في Firebase |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | **Server-only (سري للغاية)** | محتوى مفتاح حساب الخدمة كاملاً بصيغة JSON لتمكين السيرفر من الكتابة الآمنة |
+| `UPSTASH_REDIS_REST_URL` | **Server-only (سري)** | عنوان REST Endpoint الخاص بقاعدة Upstash Redis لتحديد المعدل الموزع |
+| `UPSTASH_REDIS_REST_TOKEN` | **Server-only (سري)** | التوكن السري الخاص بـ Upstash Redis REST API |
 | `VITE_CLOUDINARY_CLOUD_NAME`| Client (عام) | اسم السحابة في Cloudinary |
 | `VITE_DEMO_MODE` | Client (عام) | يتم ضبطه على `false` في الإنتاج |
 | `VITE_SITE_URL` | Client (عام) | رابط الموقع الرسمي مثل `https://oldish-chi.vercel.app` |
@@ -168,11 +149,30 @@ service cloud.firestore {
 | `VITE_PLAUSIBLE_DOMAIN` | Client (اختياري) | نطاق تحليلات Plausible الخفيفة الصديقة للخصوصية |
 | `VITE_PLAUSIBLE_API_HOST`| Client (اختياري) | عنوان استضافة Plausible مخصص (الافتراضي plausible.io) |
 
-> **تحذير أمني هام**: لا تقم مطلقاً بوضع البادئة `VITE_` أمام مفاتيح `CLOUDINARY_API_KEY` أو `CLOUDINARY_API_SECRET` أو `TURNSTILE_SECRET_KEY` أو `TELEGRAM_BOT_TOKEN` حتى لا تظهر في حزم المتصفح. دوال الخادم تقرأها بأمان تام. جميع الميزات الاختيارية تتوقف تلقائياً دون أي تأثير في حال عدم إدخال مفاتيحها.
+> **تحذير أمني هام**: لا تقم مطلقاً بوضع البادئة `VITE_` أمام مفاتيح `CLOUDINARY_API_KEY` أو `CLOUDINARY_API_SECRET` أو `TURNSTILE_SECRET_KEY` أو `TELEGRAM_BOT_TOKEN` أو `FIREBASE_SERVICE_ACCOUNT_JSON` أو `UPSTASH_REDIS_REST_TOKEN` حتى لا تظهر في حزم المتصفح. دوال الخادم تقرأها بأمان تام. جميع الميزات الاختيارية تتوقف تلقائياً دون أي تأثير في حال عدم إدخال مفاتيحها.
 
 ---
 
-## 4. دورة العمل: التعديل، الحفظ كمسودة، والنشر الحي
+## 4. خطوات النشر الآمن بالترتيب الصحيح (Safe Deployment Order)
+
+لضمان عدم انقطاع استقبال حجوزات الزوار وحماية قاعدة البيانات:
+
+1. **الخطوة (أ) - دفع الكود إلى المستودع (Push Code)**:
+   - دفع الكود المحدث الخاص بنقطة النهاية `/api/submit-inquiry` وحزمة `firebase-admin`.
+2. **الخطوة (ب) - إضافة المتغيرات الجديدة في Vercel وإعادة النشر (Set Env & Redeploy)**:
+   - افتح **Vercel -> Settings -> Environment Variables**.
+   - أضف `FIREBASE_SERVICE_ACCOUNT_JSON` (محتوى ملف JSON لحساب الخدمة من Firebase Console -> Project Settings -> Service accounts -> Generate new private key).
+   - أضف `UPSTASH_REDIS_REST_URL` و `UPSTASH_REDIS_REST_TOKEN` (من Upstash Console لقاعدة Redis REST).
+   - قم بإعادة نشر أحدث Deployment (Redeploy) لتطبيق المتغيرات على الدوال السحابية.
+3. **الخطوة (ج) - تجربة إرسال حجز اختباري (Test Reservation)**:
+   - افتح الموقع وقم بتعبئة نموذج الحجز في قسم الحجوزات وتأكد من نجاح الإرسال وتوليد المعرف وظهوره في لوحة التحكم.
+4. **الخطوة (د) - نشر قواعد الحماية الجديدة في Firebase Console (Publish Rules)**:
+   - بعد التأكد من عمل السيرفر بنجاح، افتح Firebase Console -> Firestore Database -> Rules.
+   - انسخ القواعد المحدثة من `firestore.rules` (التي تحظر إنشاء الاستفسارات من المتصفح `allow create: if false;`) واضغط **Publish**.
+
+---
+
+## 5. دورة العمل: التعديل، الحفظ كمسودة، والنشر الحي
 
 1. ادخل إلى الرابط: `/admin/login` وسجل الدخول بحساب المالك أو المحرر.
 2. ستظهر لوحة الإدارة ويعرض المؤشر العلوي شارة:

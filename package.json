@@ -6,12 +6,14 @@
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",
     "build": "node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build",
+    "check": "npm run lint && npm run build",
     "lint": "node ./node_modules/oxlint/bin/oxlint",
     "preview": "node ./node_modules/vite/bin/vite.js preview"
   },
   "dependencies": {
     "dompurify": "^3.4.17",
     "firebase": "^13.0.0",
+    "firebase-admin": "^14.5.0",
     "lucide-react": "^1.59.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",

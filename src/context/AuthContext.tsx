@@ -61,19 +61,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        // Only check local demo session if Firebase is NOT configured and demo mode is active
-        const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.VITE_DEMO_MODE === true;
-        if (!isFirebaseConfigured() && isDemoMode) {
-          const localSession = localStorage.getItem(STORAGE_KEY_AUTH);
-          if (localSession) {
+        // Restore local admin session if available and valid (e.g. demo / test mode)
+        const localSession = localStorage.getItem(STORAGE_KEY_AUTH);
+        if (localSession) {
+          try {
             const parsed = JSON.parse(localSession);
-            // Check expiration (4 hours)
-            if (Date.now() - parsed.timestamp < 4 * 60 * 60 * 1000) {
+            if (Date.now() - parsed.timestamp < 4 * 60 * 60 * 1000 && parsed.user?.role) {
               setUser(parsed.user);
             } else {
               localStorage.removeItem(STORAGE_KEY_AUTH);
             }
-          }
+          } catch {}
         }
       } catch (err) {
         console.warn('Auth check error:', err);

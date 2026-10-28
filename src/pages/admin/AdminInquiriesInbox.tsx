@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
+import { toWhatsappNumber } from '../../lib/whatsapp';
 import { 
   Inbox, 
   Phone, 
@@ -65,17 +66,6 @@ export const AdminInquiriesInbox: React.FC = () => {
     link.download = `oldish_inquiries_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  };
-
-  const getCleanWhatsAppPhone = (phone: string) => {
-    const digits = phone.replace(/\D/g, '');
-    if (digits.startsWith('01')) {
-      return `2${digits}`;
-    }
-    if (digits.startsWith('20')) {
-      return digits;
-    }
-    return digits;
   };
 
   return (
@@ -246,7 +236,7 @@ export const AdminInquiriesInbox: React.FC = () => {
                 </tr>
               ) : (
                 filteredInquiries.map((inq) => {
-                  const cleanWa = getCleanWhatsAppPhone(inq.phone);
+                  const cleanWa = toWhatsappNumber(inq.phone);
                   return (
                     <tr key={inq.id} style={{ background: inq.status === 'new' ? '#FFFDF9' : 'transparent' }}>
                       {/* Date */}
@@ -300,7 +290,7 @@ export const AdminInquiriesInbox: React.FC = () => {
                             <MessageCircle size={15} />
                           </a>
                           <a
-                            href={`tel:${inq.phone}`}
+                            href={`tel:${inq.phone.replace(/\s+/g, '')}`}
                             className="btn-icon-subtle"
                             title="اتصال هاتفي مباشر"
                             style={{ color: 'var(--color-gold)' }}

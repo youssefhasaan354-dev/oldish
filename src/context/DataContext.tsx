@@ -31,7 +31,6 @@ import {
   clearDraftSite, 
   loadVersionsFromFirestore, 
   saveVersionToFirestore, 
-  submitInquiryToFirestore, 
   loadInquiriesFromFirestore, 
   updateInquiryInFirestore,
   type PublishedSiteSnapshot 
@@ -117,7 +116,7 @@ interface DataContextType {
   restoreVersion: (versionId: string) => boolean;
   discardDraft: () => void;
   resetAllDemoData: () => Promise<void>;
-  submitInquiry: (data: Omit<Inquiry, 'id' | 'status' | 'created_at'>) => Promise<{ success: boolean; error?: string }>;
+  submitInquiry: (data: Omit<Inquiry, 'id' | 'status' | 'created_at'> & { turnstileToken?: string | null }) => Promise<{ success: boolean; id?: string; error?: string }>;
   updateInquiryStatus: (id: string, status: Inquiry['status']) => void;
   markInquiryHandled: (id: string) => void;
   archiveInquiry: (id: string) => void;
@@ -424,50 +423,60 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        // 3. Flush inquiry retry queue if online and firebase is active
-        if (isFirebaseActive) {
-          try {
-            const rawRetry = localStorage.getItem(STORAGE_KEY_INQUIRIES_RETRY);
-            if (rawRetry) {
-              const queue: Inquiry[] = JSON.parse(rawRetry);
-              if (Array.isArray(queue) && queue.length > 0) {
-                const remaining: Inquiry[] = [];
-                const flushed: Inquiry[] = [];
-                for (const item of queue) {
-                  try {
-                    await submitInquiryToFirestore(item);
-                    flushed.push(item);
-                    // Notify owner of flushed offline booking
-                    try {
-                      fetch('/api/notify-inquiry', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(item)
-                      }).catch(e => console.warn('Flushed inquiry notify note:', e));
-                    } catch {}
-                  } catch {
+        // 3. Flush inquiry retry queue if online via secure /api/submit-inquiry
+        try {
+          const rawRetry = localStorage.getItem(STORAGE_KEY_INQUIRIES_RETRY);
+          if (rawRetry) {
+            const queue: Inquiry[] = JSON.parse(rawRetry);
+            if (Array.isArray(queue) && queue.length > 0) {
+              const remaining: Inquiry[] = [];
+              const flushed: Inquiry[] = [];
+              for (const item of queue) {
+                try {
+                  const flushRes = await fetch('/api/submit-inquiry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      type: item.type,
+                      name: item.name,
+                      phone: item.phone,
+                      email: item.email,
+                      date: item.date,
+                      time: item.time,
+                      guests: item.guests,
+                      message: item.message,
+                      branch: item.branch,
+                      honeypot: item.honeypot
+                    })
+                  });
+                  const flushData = await flushRes.json().catch(() => null);
+                  if (flushRes.ok && flushData?.success) {
+                    flushed.push({ ...item, id: flushData.id || item.id });
+                  } else {
                     remaining.push(item);
                   }
-                }
-                if (remaining.length > 0) {
-                  localStorage.setItem(STORAGE_KEY_INQUIRIES_RETRY, JSON.stringify(remaining));
-                } else {
-                  localStorage.removeItem(STORAGE_KEY_INQUIRIES_RETRY);
-                }
-                if (flushed.length > 0 && isMounted) {
-                  setInquiries(prev => {
-                    const existingIds = new Set(prev.map(i => i.id));
-                    const newItems = flushed.filter(i => !existingIds.has(i.id));
-                    const updated = [...newItems, ...prev];
-                    localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
-                    return updated;
-                  });
+                } catch {
+                  remaining.push(item);
                 }
               }
+              if (remaining.length > 0) {
+                localStorage.setItem(STORAGE_KEY_INQUIRIES_RETRY, JSON.stringify(remaining));
+              } else {
+                localStorage.removeItem(STORAGE_KEY_INQUIRIES_RETRY);
+              }
+              if (flushed.length > 0 && isMounted) {
+                setInquiries(prev => {
+                  const existingIds = new Set(prev.map(i => i.id));
+                  const newItems = flushed.filter(i => !existingIds.has(i.id));
+                  const updated = [...newItems, ...prev];
+                  localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
+                  return updated;
+                });
+              }
             }
-          } catch (retryErr) {
-            console.warn('Inquiry retry queue flush note:', retryErr);
           }
+        } catch (retryErr) {
+          console.warn('Inquiry retry queue flush note:', retryErr);
         }
       } catch (err) {
         console.error('Error in loadData:', err);
@@ -1231,72 +1240,80 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logAction('Discard Draft', 'Draft Changes Reverted');
   };
 
-  // Submit Inquiry (Public)
+  // Submit Inquiry (Public — via secure serverless endpoint /api/submit-inquiry)
   const submitInquiry = async (
-    data: Omit<Inquiry, 'id' | 'status' | 'created_at'>
-  ): Promise<{ success: boolean; error?: string }> => {
+    data: Omit<Inquiry, 'id' | 'status' | 'created_at'> & { turnstileToken?: string | null }
+  ): Promise<{ success: boolean; id?: string; error?: string }> => {
     if (data.honeypot && data.honeypot.trim() !== '') {
       return { success: true };
     }
 
-    const newInquiry: Inquiry = {
-      ...data,
-      id: `inq-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      status: 'new',
-      created_at: new Date().toISOString()
+    const payload = {
+      type: data.type,
+      name: data.name,
+      phone: data.phone,
+      email: data.email || null,
+      date: data.date || null,
+      time: data.time || null,
+      guests: data.guests || null,
+      message: data.message || null,
+      branch: data.branch || 'Downtown Cairo',
+      honeypot: data.honeypot || '',
+      turnstileToken: data.turnstileToken
     };
 
-    if (isFirebaseActive) {
-      try {
-        await submitInquiryToFirestore(newInquiry);
+    try {
+      const response = await fetch('/api/submit-inquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const resJson = await response.json().catch(() => null);
+
+      if (response.ok && resJson?.success) {
+        const returnedId = resJson.id || `inq-${Date.now()}`;
+        const newInquiry: Inquiry = {
+          ...data,
+          id: returnedId,
+          status: 'new',
+          created_at: new Date().toISOString()
+        };
+
         setInquiries(prev => {
           const updated = [newInquiry, ...prev];
           localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
           return updated;
         });
 
-        // Notify owner asynchronously via Telegram/Resend API
-        try {
-          fetch('/api/notify-inquiry', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newInquiry)
-          }).catch(err => console.warn('Inquiry notify note:', err));
-        } catch {}
-
-        return { success: true };
-      } catch (dbErr: any) {
-        console.error('Firestore inquiry insert failed:', dbErr);
-        captureException(dbErr, { inquiryId: newInquiry.id });
-        // Keep in localStorage only as retry queue
-        try {
-          const rawRetry = localStorage.getItem(STORAGE_KEY_INQUIRIES_RETRY);
-          const queue: Inquiry[] = rawRetry ? JSON.parse(rawRetry) : [];
-          queue.push(newInquiry);
-          localStorage.setItem(STORAGE_KEY_INQUIRIES_RETRY, JSON.stringify(queue));
-        } catch {}
-        return { 
-          success: false, 
-          error: dbErr?.message || (typeof dbErr === 'string' ? dbErr : 'Failed to submit inquiry to server') 
-        };
+        return { success: true, id: returnedId };
+      } else {
+        const errorMsg = resJson?.error || `Server responded with status ${response.status}`;
+        throw new Error(errorMsg);
       }
-    } else {
-      setInquiries(prev => {
-        const updated = [newInquiry, ...prev];
-        localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
-        return updated;
-      });
+    } catch (err: any) {
+      console.error('Inquiry submission error:', err);
+      captureException(err, { name: data.name, phone: data.phone });
 
-      // Also trigger notification in offline / local mode if endpoint available
+      const newInquiry: Inquiry = {
+        ...data,
+        id: `inq-offline-${Date.now()}`,
+        status: 'new',
+        created_at: new Date().toISOString()
+      };
+
+      // Queue in localStorage retry queue if network fails
       try {
-        fetch('/api/notify-inquiry', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newInquiry)
-        }).catch(() => {});
+        const rawRetry = localStorage.getItem(STORAGE_KEY_INQUIRIES_RETRY);
+        const queue: Inquiry[] = rawRetry ? JSON.parse(rawRetry) : [];
+        queue.push(newInquiry);
+        localStorage.setItem(STORAGE_KEY_INQUIRIES_RETRY, JSON.stringify(queue));
       } catch {}
 
-      return { success: true };
+      return {
+        success: false,
+        error: err?.message || 'Failed to submit inquiry to server'
+      };
     }
   };
 

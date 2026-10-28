@@ -219,7 +219,7 @@ export const AdminBranchesManager: React.FC = () => {
               <Phone size={17} style={{ color: 'var(--color-gold)', flexShrink: 0 }} />
               <div style={{ fontSize: '0.875rem', color: '#333' }}>
                 {b.phone ? (
-                  <a href={`tel:${b.phone}`} style={{ color: 'inherit', textDecoration: 'none', fontWeight: 600 }}>
+                  <a href={`tel:${b.phone.replace(/\s+/g, '')}`} style={{ color: 'inherit', textDecoration: 'none', fontWeight: 600 }}>
                     {b.phone}
                   </a>
                 ) : (

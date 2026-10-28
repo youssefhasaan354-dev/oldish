@@ -157,34 +157,14 @@ export const ReservationSection: React.FC = () => {
     }, 2500);
 
     try {
-      // Optional Turnstile server-side verification if site key is configured
-      if (turnstileSiteKey) {
-        if (!turnstileToken) {
-          setSubmitError(
-            isRTL 
-              ? 'يرجى التحقق الأمني من كلاودفلير (Turnstile) للمتابعة.' 
-              : 'Please complete the Cloudflare security verification.'
-          );
-          return;
-        }
-
-        try {
-          const verifyRes = await fetch('/api/verify-turnstile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: turnstileToken })
-          });
-          if (!verifyRes.ok) {
-            setSubmitError(
-              isRTL 
-                ? 'فشل التحقق الأمني. يرجى المحاولة مجدداً أو الاتصال بنا مباشرة.' 
-                : 'Security verification failed. Please try again or call us directly.'
-            );
-            return;
-          }
-        } catch (err) {
-          console.warn('Turnstile verify error:', err);
-        }
+      // Optional Turnstile client-side check if site key is configured
+      if (turnstileSiteKey && !turnstileToken) {
+        setSubmitError(
+          isRTL 
+            ? 'يرجى التحقق الأمني من كلاودفلير (Turnstile) للمتابعة.' 
+            : 'Please complete the Cloudflare security verification.'
+        );
+        return;
       }
 
       const res = await submitInquiry({
@@ -197,13 +177,18 @@ export const ReservationSection: React.FC = () => {
         guests: form.guests,
         message: form.message,
         branch: 'Downtown Cairo',
-        honeypot: form.honeypot
+        honeypot: form.honeypot,
+        turnstileToken
       });
 
       if (res.success) {
         setIsSubmitted(true);
         setSubmitError(null);
       } else {
+        if (window.turnstile && turnstileWidgetId.current) {
+          try { window.turnstile.reset(turnstileWidgetId.current); } catch {}
+          setTurnstileToken('');
+        }
         const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
         if (isOffline) {
           setIsOfflineQueued(true);

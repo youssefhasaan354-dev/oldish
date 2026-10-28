@@ -694,9 +694,15 @@ export const MenuSection: React.FC = () => {
             <MapPin size={20} style={{ color: 'var(--color-gold, #886E42)', flexShrink: 0, marginTop: '2px' }} />
             <div>
               <strong>{isRTL ? 'فروع أولديش وقائمة الأسعار:' : 'Oldish Branches & Menu Pricing:'}</strong>{' '}
-              {isRTL 
-                ? 'الأسعار المعروضة أعلاه موثقة بالجنيه المصري (EGP) بحسب القائمة الرسمية. فروعنا في خدمتكم بوسط البلد (20 شارع محمد محمود، تليفون: 01060119488) والزمالك (14 شارع طه حسين تقاطع المرعشلي، تليفون: 01000665331).' 
-                : 'All listed prices are in Egyptian Pounds (EGP) based on verified in-house menu reference. Visit our Downtown branch (20 Mohamed Mahmoud St, Tel: 01060119488) or Zamalek branch (14 Taha Hussein St at Maraachli St, Tel: 01000665331).'}
+              {(() => {
+                const downtownBranch = branches.find(b => b.id === 'downtown-main') || branches[0];
+                const zamalekBranch = branches.find(b => b.id === 'zamalek-secondary') || branches[1];
+                const dtPhone = downtownBranch?.phone || '01060119488';
+                const zmPhone = zamalekBranch?.phone || '01000665331';
+                return isRTL 
+                  ? `الأسعار المعروضة أعلاه موثقة بالجنيه المصري (EGP) بحسب القائمة الرسمية. فروعنا في خدمتكم بوسط البلد (20 شارع محمد محمود، تليفون: ${dtPhone}) والزمالك (14 شارع طه حسين تقاطع المرعشلي، تليفون: ${zmPhone}).`
+                  : `All listed prices are in Egyptian Pounds (EGP) based on verified in-house menu reference. Visit our Downtown branch (20 Mohamed Mahmoud St, Tel: ${dtPhone}) or Zamalek branch (14 Taha Hussein St at Maraachli St, Tel: ${zmPhone}).`;
+              })()}
             </div>
           </div>
         </div>
