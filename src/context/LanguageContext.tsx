@@ -24,9 +24,9 @@ const UI_TRANSLATIONS: Record<string, { en: string; ar: string }> = {
   // Hero
   'hero.eyebrow': { en: 'A CAIRO RESTAURANT & CAFÉ', ar: 'مطعم ومقهى قاهري أصيل' },
   'hero.headline': { en: 'GOOD FOOD. TIMELESS ATMOSPHERE.', ar: 'طعام أصيل. أجواء لا يطويها الزمان.' },
-  'hero.subtitle': { 
-    en: 'Discover a welcoming gathering place for comforting food, relaxed moments, and the distinctive vintage character of Downtown Cairo.', 
-    ar: 'اكتشف ملتقى دافئاً يجمع بين المذاق البيتي، واللحظات الهادئة، وسحر الطابع الكلاسيكي لقلب وسط البلد بالقاهرة.' 
+  'hero.subtitle': {
+    en: 'Discover a welcoming gathering place for comforting food, relaxed moments, and the distinctive vintage character of Downtown Cairo.',
+    ar: 'اكتشف ملتقى دافئاً يجمع بين المذاق البيتي، واللحظات الهادئة، وسحر الطابع الكلاسيكي لقلب وسط البلد بالقاهرة.'
   },
   'hero.ctaMenu': { en: 'Explore the Menu', ar: 'استكشف قائمة الطعام' },
   'hero.ctaReserve': { en: 'Find Your Table', ar: 'احجز طاولتك' },
@@ -35,20 +35,20 @@ const UI_TRANSLATIONS: Record<string, { en: string; ar: string }> = {
 
   // Story & About
   'story.title': { en: 'Our Heritage & Philosophy', ar: 'تراثنا وفلسفتنا' },
-  'story.lead': { 
-    en: 'Oldish was born in the artistic crossroads of Downtown Cairo — a sanctuary of weathered brick, leafy courtyards, and warm Egyptian hospitality.', 
-    ar: 'وُلد أولديش في الملتقى الفني والإنساني لوسط البلد بالقاهرة، ليكون ملاذاً من الطوب العتيق، والأفنية الخضراء، وكرم الضيافة المصري.' 
+  'story.lead': {
+    en: 'Oldish was born in the artistic crossroads of Downtown Cairo — a sanctuary of weathered brick, leafy courtyards, and warm Egyptian hospitality.',
+    ar: 'وُلد أولديش في الملتقى الفني والإنساني لوسط البلد بالقاهرة، ليكون ملاذاً من الطوب العتيق، والأفنية الخضراء، وكرم الضيافة المصري.'
   },
-  'story.disclaimer': { 
-    en: 'Verified brand narrative. Details drawn directly from local cultural history, official public records, and verified premises.', 
-    ar: 'سرد حقيقي موثق مستوحى من تاريخ وسط البلد والتفاصيل المعتمدة للمطعم.' 
+  'story.disclaimer': {
+    en: 'Verified brand narrative. Details drawn directly from local cultural history, official public records, and verified premises.',
+    ar: 'سرد حقيقي موثق مستوحى من تاريخ وسط البلد والتفاصيل المعتمدة للمطعم.'
   },
 
   // Menu Section
   'menu.title': { en: 'The Dining & Café Menu', ar: 'قائمة المأكولات والمشروبات' },
-  'menu.subtitle': { 
-    en: 'From slow-cooked morning ful and fragrant Egyptian tagines to comforting pastas and freshly ground Turkish coffee.', 
-    ar: 'من فخارات الفول الصباحي والطواجن المصرية التراثية إلى الباستا الشهية والقهوة المعدة على الرمل.' 
+  'menu.subtitle': {
+    en: 'From slow-cooked morning ful and fragrant Egyptian tagines to comforting pastas and freshly ground Turkish coffee.',
+    ar: 'من فخارات الفول الصباحي والطواجن المصرية التراثية إلى الباستا الشهية والقهوة المعدة على الرمل.'
   },
   'menu.filterAll': { en: 'All Items', ar: 'جميع الأطباق' },
   'menu.dietaryFilter': { en: 'Dietary Preferences', ar: 'الخيارات الغذائية' },
@@ -57,24 +57,24 @@ const UI_TRANSLATIONS: Record<string, { en: string; ar: string }> = {
   'menu.vegan': { en: 'Vegan', ar: 'نباتي صرف' },
   'menu.glutenFree': { en: 'Gluten-Free Option', ar: 'خالٍ من الغلوتين' },
   'menu.chefChoice': { en: "Oldish Classic", ar: 'من أطباق أولديش المميزة' },
-  'menu.draftNotice': { 
-    en: 'Note on Pricing: Menu items reflect confirmed signature dishes. Prices are currently marked as provisional draft entries awaiting final seasonal confirmation by restaurant management.', 
-    ar: 'ملاحظة حول الأسعار: الأطباق تمثل أشهر اختيارات المطعم المعتمدة. الأسعار المعروضة هي مسودة قيد الاعتماد الموسمي النهائي من إدارة المطعم.' 
+  'menu.draftNotice': {
+    en: 'Menu items reflect confirmed signature selections. Prices are subject to seasonal updates.',
+    ar: 'قائمة الأطباق تمثل أشهر اختيارات المطعم المعتمدة، والأسعار خاضعة للتحديثات الموسمية الدورية.'
   },
   'menu.pdfDownload': { en: 'Request Current Seasonal Menu PDF', ar: 'طلب نسخة PDF من المنيو الموسمي' },
 
   // Atmosphere
   'atmosphere.title': { en: 'Courtyard & Indoor Salon', ar: 'فناء خارجي وصالون كلاسيكي' },
-  'atmosphere.subtitle': { 
-    en: 'An unhurried retreat between historic walls and leafy corners in Bab El Louq.', 
-    ar: 'ملاذ هادئ بين الجدران التاريخية والأركان الخضراء بحي باب اللوق العريق.' 
+  'atmosphere.subtitle': {
+    en: 'An unhurried retreat between historic walls and leafy corners in Bab El Louq.',
+    ar: 'ملاذ هادئ بين الجدران التاريخية والأركان الخضراء بحي باب اللوق العريق.'
   },
 
   // Gallery
   'gallery.title': { en: 'Atmospheric Moments', ar: 'معرض الأجواء والذكريات' },
-  'gallery.subtitle': { 
-    en: 'A visual celebration of our courtyard, authentic culinary plates, and timeless spaces.', 
-    ar: 'جولة بصرية في فنائنا المفتوح، وأطباقنا التراثية، وأروقتنا العريقة.' 
+  'gallery.subtitle': {
+    en: 'A visual celebration of our courtyard, authentic culinary plates, and timeless spaces.',
+    ar: 'جولة بصرية في فنائنا المفتوح، وأطباقنا التراثية، وأروقتنا العريقة.'
   },
   'gallery.catAll': { en: 'All', ar: 'الكل' },
   'gallery.catCourtyard': { en: 'Courtyard', ar: 'الفناء الخارجي' },
@@ -84,21 +84,21 @@ const UI_TRANSLATIONS: Record<string, { en: string; ar: string }> = {
 
   // Reviews
   'reviews.title': { en: 'Words from Our Guests', ar: 'انطباعات وشهادات ضيوفنا' },
-  'reviews.subtitle': { 
-    en: 'Genuine reflections from locals, students, and travelers who have spent unhurried afternoons with us.', 
-    ar: 'تجارب حقيقية لزوارنا من أهل القاهرة والطلاب والمسافرين الذين استمتعوا بأوقاتهم في ضيافتنا.' 
+  'reviews.subtitle': {
+    en: 'Genuine reflections from locals, students, and travelers who have spent unhurried afternoons with us.',
+    ar: 'تجارب حقيقية لزوارنا من أهل القاهرة والطلاب والمسافرين الذين استمتعوا بأوقاتهم في ضيافتنا.'
   },
   'reviews.verifiedSource': { en: 'Verified Public Review', ar: 'تقييم عام معتمد' },
 
   // Reservations
   'res.title': { en: 'Reserve Your Table', ar: 'احجز طاولتك' },
-  'res.subtitle': { 
-    en: 'Join us for breakfast, lunch, or an atmospheric dinner in our courtyard or indoor vintage salon.', 
-    ar: 'تفضل بزيارتنا لتناول الإفطار، الغداء، أو عشاء هادئ في فنائنا المكشوف أو صالوننا الكلاسيكي.' 
+  'res.subtitle': {
+    en: 'Join us for breakfast, lunch, or an atmospheric dinner in our courtyard or indoor vintage salon.',
+    ar: 'تفضل بزيارتنا لتناول الإفطار، الغداء، أو عشاء هادئ في فنائنا المكشوف أو صالوننا الكلاسيكي.'
   },
-  'res.disclaimer': { 
-    en: 'Reservation Policy: Submitting this form sends a direct booking request to our host team. You will receive a telephone or SMS confirmation within 2 hours of operating hours. We do not practice automatic overbooking.', 
-    ar: 'سياسة الحجز: إرسال هذا الطلب يحيله مباشرة إلى فريق الاستقبال لدينا. سيتم التواصل معك هاتفياً أو عبر الرسائل لتأكيد الحجز خلال ساعتين من ساعات العمل.' 
+  'res.disclaimer': {
+    en: 'Reservation Policy: Submitting this form sends a direct booking request to our host team. You will receive a telephone or SMS confirmation within 2 hours of operating hours. We do not practice automatic overbooking.',
+    ar: 'سياسة الحجز: إرسال هذا الطلب يحيله مباشرة إلى فريق الاستقبال لدينا. سيتم التواصل معك هاتفياً أو عبر الرسائل لتأكيد الحجز خلال ساعتين من ساعات العمل.'
   },
   'res.branch': { en: 'Select Location', ar: 'اختر الفرع' },
   'res.guests': { en: 'Number of Guests', ar: 'عدد الضيوف' },
@@ -115,17 +115,17 @@ const UI_TRANSLATIONS: Record<string, { en: string; ar: string }> = {
   'res.submit': { en: 'Send Reservation Request', ar: 'إرسال طلب الحجز' },
   'res.submitting': { en: 'Transmitting Request...', ar: 'جارٍ إرسال الطلب...' },
   'res.successTitle': { en: 'Reservation Request Received', ar: 'تم استلام طلب الحجز بنجاح' },
-  'res.successBody': { 
-    en: 'Thank you! Your table request has been forwarded directly to Oldish dining staff. We will call you shortly to confirm your table details.', 
-    ar: 'شكراً لك! تم تحويل طلبك مباشرة إلى فريق الاستقبال في أولديش، وسنتصل بك قريباً لتأكيد تفاصيل طاولتك.' 
+  'res.successBody': {
+    en: 'Thank you! Your table request has been forwarded directly to Oldish dining staff. We will call you shortly to confirm your table details.',
+    ar: 'شكراً لك! تم تحويل طلبك مباشرة إلى فريق الاستقبال في أولديش، وسنتصل بك قريباً لتأكيد تفاصيل طاولتك.'
   },
   'res.reset': { en: 'Book Another Table', ar: 'حجز طاولة أخرى' },
 
   // Location & Contact
   'loc.title': { en: 'Visit & Connect', ar: 'الفروع ومعلومات التواصل' },
-  'loc.subtitle': { 
-    en: 'Find us in Downtown Cairo behind the Greek Campus, or reach out to our team.', 
-    ar: 'تفضل بزيارتنا في وسط البلد خلف الجريك كامبس، أو تواصل مع فريقنا مباشرة.' 
+  'loc.subtitle': {
+    en: 'Find us in Downtown Cairo behind the Greek Campus, or reach out to our team.',
+    ar: 'تفضل بزيارتنا في وسط البلد خلف الجريك كامبس، أو تواصل مع فريقنا مباشرة.'
   },
   'loc.primaryBadge': { en: 'Primary Verified Location', ar: 'الفرع الرئيسي المعتمد' },
   'loc.unverifiedBadge': { en: 'Directory Record • Under Client Verification', ar: 'سجل الأدلة • قيد اعتماد المالك' },
@@ -141,15 +141,15 @@ const UI_TRANSLATIONS: Record<string, { en: string; ar: string }> = {
   'loc.contactMessage': { en: 'Your Message', ar: 'رسالتك' },
   'loc.contactSend': { en: 'Send Message', ar: 'إرسال الرسالة' },
   'loc.contactSending': { en: 'Sending...', ar: 'جارٍ الإرسال...' },
-  'loc.contactSuccess': { 
-    en: 'Thank you for reaching out! Your message has been recorded and our team will get back to you promptly.', 
-    ar: 'شكراً لتواصلك معنا! تم تسجيل رسالتك وسيقوم فريقنا بالرد عليك في أقرب وقت.' 
+  'loc.contactSuccess': {
+    en: 'Thank you for reaching out! Your message has been recorded and our team will get back to you promptly.',
+    ar: 'شكراً لتواصلك معنا! تم تسجيل رسالتك وسيقوم فريقنا بالرد عليك في أقرب وقت.'
   },
 
   // Footer & Common
-  'footer.about': { 
-    en: 'A timeless Cairo restaurant and café. Serving comforting Egyptian breakfast, traditional clay tagines, and artisan drinks in a leafy red-brick courtyard.', 
-    ar: 'مطعم ومقهى قاهري عريق. يقدم الإفطار المصري التراثي، وطواجن الفخار، والمشروبات الطازجة في فناء ساحر محاط بالطوب الأحمر.' 
+  'footer.about': {
+    en: 'A timeless Cairo restaurant and café. Serving comforting Egyptian breakfast, traditional clay tagines, and artisan drinks in a leafy red-brick courtyard.',
+    ar: 'مطعم ومقهى قاهري عريق. يقدم الإفطار المصري التراثي، وطواجن الفخار، والمشروبات الطازجة في فناء ساحر محاط بالطوب الأحمر.'
   },
   'footer.quickLinks': { en: 'Quick Navigation', ar: 'روابط سريعة' },
   'footer.contactInfo': { en: 'Direct Contact', ar: 'التواصل المباشر' },

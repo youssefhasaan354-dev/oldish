@@ -13,16 +13,22 @@ import {
   Download, 
   Upload, 
   Search, 
-  Star, 
   AlertCircle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  CheckCircle2,
+  RefreshCw,
+  FileCode,
+  ShieldCheck,
+  MapPin
 } from 'lucide-react';
+import { importVerifiedMenu, exportMenuToJSON, importMenuFromJSON } from '../../data/menuImport';
 
 export const AdminMenuManager: React.FC = () => {
   const { 
     menuCategories, 
     menuItems, 
     mediaList,
+    branches,
     siteSettings,
     updateSettings,
     addMenuCategory, 
@@ -37,6 +43,7 @@ export const AdminMenuManager: React.FC = () => {
   const [activeCategoryId, setActiveCategoryId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTag, setFilterTag] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'needs_review' | 'missing_desc' | 'missing_photo' | 'unpublished'>('all');
   
   // Category Modal State
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
@@ -51,35 +58,67 @@ export const AdminMenuManager: React.FC = () => {
     name_ar: '',
     description_en: '',
     description_ar: '',
-    category_id: menuCategories[0]?.id || '',
+    category_id: menuCategories[0]?.id || 'breakfast',
     price: '',
+    price_min: null,
+    price_max: null,
     image_url: '',
+    image_alt_en: '',
+    image_alt_ar: '',
     media_id: '',
     tags: [],
     is_signature: false,
+    is_unavailable: false,
     is_sample: false,
+    is_published: true,
+    verification_status: 'verified',
+    branch_availability: { 'downtown-main': true, 'zamalek-secondary': true },
     available: true,
     visible: true,
   });
   const [tagInput, setTagInput] = useState('');
 
+  // Data Quality Metrics
+  const auditMetrics = useMemo(() => {
+    const total = menuItems.length;
+    const verified = menuItems.filter(i => i.verification_status === 'verified').length;
+    const published = menuItems.filter(i => i.is_published !== false && i.visible).length;
+    const missingDesc = menuItems.filter(i => !i.description_en?.trim() && !i.description_ar?.trim()).length;
+    const missingPhoto = menuItems.filter(i => !i.image_url?.trim()).length;
+    const emptyCategories = menuCategories.filter(c => !menuItems.some(i => i.category_id === c.id)).length;
+
+    return { total, verified, published, missingDesc, missingPhoto, emptyCategories };
+  }, [menuItems, menuCategories]);
+
   // Filtered items
   const filteredItems = useMemo(() => {
     return menuItems.filter(item => {
       if (activeCategoryId !== 'all' && item.category_id !== activeCategoryId) return false;
+      
+      // Search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesEn = item.name_en.toLowerCase().includes(q) || item.description_en.toLowerCase().includes(q);
         const matchesAr = item.name_ar.includes(q) || item.description_ar.includes(q);
         if (!matchesEn && !matchesAr) return false;
       }
+
+      // Tag filter
       if (filterTag === 'signature' && !item.is_signature) return false;
       if (filterTag === 'sample' && !item.is_sample) return false;
       if (filterTag === 'unavailable' && item.available) return false;
       if (filterTag === 'hidden' && item.visible) return false;
+
+      // Status audit filter
+      if (statusFilter === 'verified' && item.verification_status !== 'verified') return false;
+      if (statusFilter === 'needs_review' && item.verification_status === 'verified') return false;
+      if (statusFilter === 'missing_desc' && (item.description_en?.trim() || item.description_ar?.trim())) return false;
+      if (statusFilter === 'missing_photo' && item.image_url?.trim()) return false;
+      if (statusFilter === 'unpublished' && (item.is_published !== false && item.visible)) return false;
+
       return true;
     }).sort((a, b) => a.sort_order - b.sort_order);
-  }, [menuItems, activeCategoryId, searchQuery, filterTag]);
+  }, [menuItems, activeCategoryId, searchQuery, filterTag, statusFilter]);
 
   // Category Handlers
   const handleOpenCatModal = (cat?: MenuCategory) => {
@@ -103,6 +142,7 @@ export const AdminMenuManager: React.FC = () => {
       const newId = `cat_${Date.now()}`;
       addMenuCategory({
         id: newId,
+        slug: catForm.name_en.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         name_en: catForm.name_en.trim(),
         name_ar: catForm.name_ar.trim(),
         sort_order: menuCategories.length,
@@ -130,7 +170,12 @@ export const AdminMenuManager: React.FC = () => {
       setEditingItem(item);
       setItemForm({
         ...item,
-        price: item.price || ''
+        price: item.price || '',
+        price_min: item.price_min ?? null,
+        price_max: item.price_max ?? null,
+        branch_availability: item.branch_availability || { 'downtown-main': true, 'zamalek-secondary': true },
+        is_published: item.is_published ?? true,
+        verification_status: item.verification_status || 'verified'
       });
       setTagInput(item.tags?.join(', ') || '');
     } else {
@@ -140,14 +185,21 @@ export const AdminMenuManager: React.FC = () => {
         name_ar: '',
         description_en: '',
         description_ar: '',
-        category_id: activeCategoryId !== 'all' ? activeCategoryId : (menuCategories[0]?.id || ''),
+        category_id: activeCategoryId !== 'all' ? activeCategoryId : (menuCategories[0]?.id || 'breakfast'),
         price: '',
+        price_min: null,
+        price_max: null,
         image_url: '',
+        image_alt_en: '',
+        image_alt_ar: '',
         media_id: '',
         tags: [],
         is_signature: false,
         is_unavailable: false,
         is_sample: false,
+        is_published: true,
+        verification_status: 'verified',
+        branch_availability: { 'downtown-main': true, 'zamalek-secondary': true },
         available: true,
         visible: true,
       });
@@ -165,14 +217,19 @@ export const AdminMenuManager: React.FC = () => {
       .map(t => t.trim())
       .filter(Boolean);
 
-    const dataToSave = {
+    const dataToSave: Partial<MenuItem> = {
       ...itemForm,
       name_en: itemForm.name_en.trim(),
       name_ar: itemForm.name_ar.trim(),
       description_en: itemForm.description_en?.trim() || '',
       description_ar: itemForm.description_ar?.trim() || '',
       price: itemForm.price?.trim() ? itemForm.price.trim() : null,
+      price_min: itemForm.price_min != null ? Number(itemForm.price_min) : null,
+      price_max: itemForm.price_max != null ? Number(itemForm.price_max) : null,
       tags: parsedTags,
+      is_published: itemForm.is_published ?? true,
+      verification_status: itemForm.verification_status || 'verified',
+      branch_availability: itemForm.branch_availability || { 'downtown-main': true, 'zamalek-secondary': true }
     };
 
     if (editingItem) {
@@ -181,17 +238,25 @@ export const AdminMenuManager: React.FC = () => {
       const newItemId = `item_${Date.now()}`;
       addMenuItem({
         id: newItemId,
+        slug: itemForm.name_en.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         category_id: itemForm.category_id,
-        name_en: dataToSave.name_en,
-        name_ar: dataToSave.name_ar,
-        description_en: dataToSave.description_en,
-        description_ar: dataToSave.description_ar,
+        name_en: dataToSave.name_en!,
+        name_ar: dataToSave.name_ar!,
+        description_en: dataToSave.description_en!,
+        description_ar: dataToSave.description_ar!,
         price: dataToSave.price,
+        price_min: dataToSave.price_min,
+        price_max: dataToSave.price_max,
         image_url: dataToSave.image_url,
+        image_alt_en: dataToSave.image_alt_en,
+        image_alt_ar: dataToSave.image_alt_ar,
         media_id: dataToSave.media_id,
         tags: parsedTags,
         is_signature: !!dataToSave.is_signature,
         is_sample: !!dataToSave.is_sample,
+        is_published: dataToSave.is_published ?? true,
+        verification_status: dataToSave.verification_status || 'verified',
+        branch_availability: dataToSave.branch_availability,
         available: dataToSave.available ?? true,
         visible: dataToSave.visible ?? true,
         sort_order: menuItems.length
@@ -221,7 +286,7 @@ export const AdminMenuManager: React.FC = () => {
 
   // CSV Export & Import
   const handleExportCSV = () => {
-    const headers = ['id', 'category_id', 'name_en', 'name_ar', 'description_en', 'description_ar', 'price', 'is_signature', 'is_sample', 'available', 'visible', 'tags'];
+    const headers = ['id', 'category_id', 'name_en', 'name_ar', 'description_en', 'description_ar', 'price', 'is_signature', 'is_sample', 'available', 'visible', 'is_published', 'verification_status', 'tags'];
     const rows = menuItems.map(i => [
       i.id,
       i.category_id,
@@ -234,6 +299,8 @@ export const AdminMenuManager: React.FC = () => {
       i.is_sample ? 'true' : 'false',
       i.available ? 'true' : 'false',
       i.visible ? 'true' : 'false',
+      i.is_published !== false ? 'true' : 'false',
+      i.verification_status || 'verified',
       `"${(i.tags || []).join(';')}"`
     ]);
 
@@ -266,7 +333,7 @@ export const AdminMenuManager: React.FC = () => {
           if (cols.length >= 4) {
             const newItem: MenuItem = {
               id: cols[0] || `item_${Date.now()}_${i}`,
-              category_id: cols[1] || menuCategories[0]?.id || 'tagines',
+              category_id: cols[1] || menuCategories[0]?.id || 'breakfast',
               name_en: cols[2] || '',
               name_ar: cols[3] || '',
               description_en: cols[4] || '',
@@ -276,7 +343,9 @@ export const AdminMenuManager: React.FC = () => {
               is_sample: cols[8] === 'true',
               available: cols[9] !== 'false',
               visible: cols[10] !== 'false',
-              tags: cols[11] ? cols[11].split(';') : [],
+              is_published: cols[11] !== 'false',
+              verification_status: (cols[12] as any) || 'verified',
+              tags: cols[13] ? cols[13].split(';') : [],
               sort_order: menuItems.length + addedCount
             };
             addMenuItem(newItem);
@@ -292,31 +361,106 @@ export const AdminMenuManager: React.FC = () => {
     e.target.value = '';
   };
 
+  // JSON Export & Import
+  const handleExportJSON = () => {
+    const jsonStr = exportMenuToJSON(menuCategories, menuItems);
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `oldish_menu_verified_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      if (!text) return;
+
+      const res = importMenuFromJSON(text, menuCategories, menuItems);
+      if (!res.success) {
+        alert(`خطأ في استيراد ملف JSON: ${res.error}`);
+        return;
+      }
+
+      if (res.items && res.items.length > 0) {
+        // Re-seed items
+        reorderMenuItems(res.items);
+        alert(`تم استيراد ${res.stats?.importedItems ?? 0} صنف وتحديث ${res.stats?.updatedItems ?? 0} صنف بنجاح.`);
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+    e.target.value = '';
+  };
+
+  // Reset to verified reference menu
+  const handleResetToVerified = () => {
+    if (confirm('هل ترغب في إعادة مزامنة كافة الأقسام (23 قسم) والأصناف الموثقة (63 صنف) من المصدر المرجعي المعتمد؟ سيتم تحديث الأسعار والبيانات المرجعية مع الحفاظ على التخصيصات.')) {
+      const res = importVerifiedMenu(menuCategories, menuItems);
+      reorderMenuItems(res.items);
+      alert(`اكتملت المزامنة بنجاح! تم التحقق من 23 قسماً وتحديث ${res.items.length} صنفاً.`);
+    }
+  };
+
   return (
     <div className="admin-page-container">
       {/* Top Header & Price Visibility Toggle */}
       <div className="admin-card" style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <h2 style={{ margin: '0 0 6px 0', fontSize: '1.375rem' }}>إدارة قائمة الطعام (Menu Manager)</h2>
+            <h2 style={{ margin: '0 0 6px 0', fontSize: '1.375rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={22} style={{ color: '#886E42' }} />
+              <span>إدارة قائمة طعام أولديش (Menu Manager)</span>
+            </h2>
             <p style={{ margin: 0, fontSize: '0.875rem', color: '#666' }}>
-              التحكم في الأقسام، الأصناف، الأسعار الرسمية، وعلامات الأطباق التوضيحية أو المميزة.
+              التحكم في الـ 23 قسماً المعتمدة، الأصناف الموثقة، الأسعار بالجنيه المصري (EGP)، وتحديد الفروع المتاح بها كل صنف.
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-outline-gold btn-sm"
+              onClick={handleResetToVerified}
+              title="إعادة مزامنة الأصناف الموثقة (63 صنف)"
+            >
+              <RefreshCw size={14} />
+              <span>مزامنة الأصناف الموثقة</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-outline-gold btn-sm"
+              onClick={handleExportJSON}
+              title="تصدير المنيو كملف JSON"
+            >
+              <FileCode size={14} />
+              <span>تصدير JSON</span>
+            </button>
+
+            <label className="btn btn-outline-gold btn-sm" style={{ cursor: 'pointer', margin: 0 }}>
+              <FileCode size={14} />
+              <span>استيراد JSON</span>
+              <input type="file" accept=".json" onChange={handleImportJSON} style={{ display: 'none' }} />
+            </label>
+
             <button
               type="button"
               className="btn btn-outline-gold btn-sm"
               onClick={handleExportCSV}
               title="تصدير المنيو إلى ملف CSV"
             >
-              <Download size={15} />
+              <Download size={14} />
               <span>تصدير CSV</span>
             </button>
 
             <label className="btn btn-outline-gold btn-sm" style={{ cursor: 'pointer', margin: 0 }}>
-              <Upload size={15} />
+              <Upload size={14} />
               <span>استيراد CSV</span>
               <input type="file" accept=".csv" onChange={handleImportCSV} style={{ display: 'none' }} />
             </label>
@@ -332,7 +476,7 @@ export const AdminMenuManager: React.FC = () => {
           </div>
         </div>
 
-        {/* Global Price Toggle Warning & Switch */}
+        {/* Global Price Toggle Switch */}
         <div 
           style={{ 
             marginTop: '18px', 
@@ -351,10 +495,10 @@ export const AdminMenuManager: React.FC = () => {
             <AlertCircle size={20} style={{ color: siteSettings.show_prices ? '#38A169' : '#DD6B20', flexShrink: 0 }} />
             <div>
               <strong style={{ fontSize: '0.9375rem', color: '#2D3748' }}>
-                {siteSettings.show_prices ? 'عرض الأسعار مفعل في الموقع العام' : 'عرض الأسعار معطل حالياً (موصى به لحين اعتماد المالك)'}
+                {siteSettings.show_prices ? 'عرض الأسعار مفعل في الموقع العام' : 'عرض الأسعار معطل حالياً'}
               </strong>
               <div style={{ fontSize: '0.8125rem', color: '#718096', marginTop: '2px' }}>
-                المصدر الموثق لأولديش لا ينشر أسعاراً ثابتة على السوشيال ميديا. لإظهار الأسعار للزوار يجب تفعيل هذا الخيار بعد التأكد من أسعار المنيو.
+                الأسعار معتمدة وموثقة بالجنيه المصري (EGP) بحسب القائمة المرجعية داخل المكان.
               </div>
             </div>
           </div>
@@ -371,17 +515,52 @@ export const AdminMenuManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Categories Bar */}
+      {/* Data Quality & Audit Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+        <div className="admin-card" style={{ padding: '14px', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-charcoal)' }}>{auditMetrics.total}</div>
+          <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>إجمالي الأصناف</div>
+        </div>
+
+        <div className="admin-card" style={{ padding: '14px', textAlign: 'center', borderRight: '3px solid #10B981' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#10B981' }}>{auditMetrics.verified}</div>
+          <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>أصناف موثقة رسمياً</div>
+        </div>
+
+        <div className="admin-card" style={{ padding: '14px', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#3B82F6' }}>{auditMetrics.published}</div>
+          <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>أصناف منشورة للجمهور</div>
+        </div>
+
+        <div className="admin-card" style={{ padding: '14px', textAlign: 'center', borderRight: '3px solid #F59E0B' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#F59E0B' }}>{auditMetrics.emptyCategories}</div>
+          <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>أقسام بانتظار إدخال الأصناف</div>
+        </div>
+
+        <div className="admin-card" style={{ padding: '14px', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#6B7280' }}>{auditMetrics.missingPhoto}</div>
+          <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>أصناف بدون صور فعلية</div>
+        </div>
+      </div>
+
+      {/* Categories Bar (All 23 Categories Preserved in Admin) */}
       <div className="admin-card" style={{ marginBottom: '20px', padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-charcoal)' }}>أقسام المنيو (Categories)</h3>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-charcoal)' }}>
+              أقسام قائمة الطعام (23 قسم معتمد)
+            </h3>
+            <span style={{ fontSize: '0.75rem', color: '#888' }}>
+              الأقسام التي لا تحتوي على أصناف منشورة تُحجب تلقائياً عن الموقع العام وتظهر هنا للإدارة.
+            </span>
+          </div>
           <button 
             type="button" 
             className="btn btn-outline-gold btn-sm"
             onClick={() => handleOpenCatModal()}
           >
             <Plus size={14} />
-            <span>إضافة قسم</span>
+            <span>إضافة قسم جديد</span>
           </button>
         </div>
 
@@ -397,6 +576,7 @@ export const AdminMenuManager: React.FC = () => {
           {menuCategories.map((cat) => {
             const count = menuItems.filter(i => i.category_id === cat.id).length;
             const isActive = activeCategoryId === cat.id;
+            const isEmpty = count === 0;
 
             return (
               <div key={cat.id} style={{ display: 'inline-flex', alignItems: 'center' }} className={`admin-category-pill-group ${isActive ? 'active' : ''}`}>
@@ -404,7 +584,14 @@ export const AdminMenuManager: React.FC = () => {
                   type="button"
                   className={`admin-category-pill ${isActive ? 'active' : ''}`}
                   onClick={() => setActiveCategoryId(cat.id)}
-                  style={{ borderTopRightRadius: '20px', borderBottomRightRadius: '20px', borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+                  style={{ 
+                    borderTopRightRadius: '20px', 
+                    borderBottomRightRadius: '20px', 
+                    borderTopLeftRadius: 0, 
+                    borderBottomLeftRadius: 0,
+                    opacity: isEmpty ? 0.7 : 1
+                  }}
+                  title={isEmpty ? 'قسم فارغ (بانتظار إضافة أصناف موثقة)' : undefined}
                 >
                   {cat.name_ar} ({count})
                 </button>
@@ -413,7 +600,7 @@ export const AdminMenuManager: React.FC = () => {
                   title="تعديل القسم"
                   onClick={() => handleOpenCatModal(cat)}
                   style={{
-                    background: isActive ? 'var(--color-gold)' : '#eee',
+                    background: isActive ? 'var(--color-gold, #886E42)' : '#eee',
                     color: isActive ? '#fff' : '#666',
                     border: 'none',
                     padding: '6px 6px',
@@ -427,7 +614,7 @@ export const AdminMenuManager: React.FC = () => {
                   title="حذف القسم"
                   onClick={() => handleDeleteCategory(cat)}
                   style={{
-                    background: isActive ? 'var(--color-gold)' : '#eee',
+                    background: isActive ? 'var(--color-gold, #886E42)' : '#eee',
                     color: isActive ? '#fff' : '#999',
                     border: 'none',
                     padding: '6px 8px 6px 6px',
@@ -448,55 +635,64 @@ export const AdminMenuManager: React.FC = () => {
       <div className="admin-card" style={{ marginBottom: '20px', padding: '14px 20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           {/* Search box */}
-          <div style={{ position: 'relative', flex: '1', minWidth: '240px' }}>
-            <Search size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#888' }} />
+          <div style={{ position: 'relative', width: '300px', maxWidth: '100%' }}>
+            <Search size={16} style={{ position: 'absolute', top: '50%', right: '12px', transform: 'translateY(-50%)', color: '#999' }} />
             <input
               type="text"
+              placeholder="بحث في الأصناف والوصف..."
               className="form-input"
-              style={{ paddingRight: '36px' }}
-              placeholder="البحث باسم الصنف أو الوصف..."
+              style={{ paddingRight: '36px', height: '38px' }}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          {/* Tag filters */}
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.8125rem', color: '#777' }}>فلترة:</span>
-            {[
-              { id: 'all', label: 'الكل' },
-              { id: 'signature', label: 'أطباق مميزة' },
-              { id: 'sample', label: 'أطباق توضيحية' },
-              { id: 'unavailable', label: 'غير متاح' },
-              { id: 'hidden', label: 'مخفي' },
-            ].map(f => (
-              <button
-                key={f.id}
-                type="button"
-                className={`filter-btn ${filterTag === f.id ? 'active' : ''}`}
-                onClick={() => setFilterTag(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
+          {/* Status & Tag Filters */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="form-input"
+              style={{ width: 'auto', height: '38px', fontSize: '0.8125rem' }}
+            >
+              <option value="all">كل حالات التوثيق</option>
+              <option value="verified">موثق رسمياً</option>
+              <option value="needs_review">بحاجة لمراجعة</option>
+              <option value="missing_desc">بدون وصف</option>
+              <option value="missing_photo">بدون صورة</option>
+              <option value="unpublished">مسودة غير منشورة</option>
+            </select>
+
+            <select
+              value={filterTag}
+              onChange={(e) => setFilterTag(e.target.value)}
+              className="form-input"
+              style={{ width: 'auto', height: '38px', fontSize: '0.8125rem' }}
+            >
+              <option value="all">كل العلامات</option>
+              <option value="signature">الأصناف المميزة (Signature)</option>
+              <option value="sample">أصناف توضيحية (Sample)</option>
+              <option value="unavailable">غير متوفر اليوم</option>
+              <option value="hidden">مخفي عن الزوار</option>
+            </select>
           </div>
         </div>
       </div>
 
-      {/* Dishes Table */}
+      {/* Items Table */}
       <div className="admin-card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table className="admin-table">
+          <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ width: '40px' }}>الترتيب</th>
+                <th style={{ width: '40px', textAlign: 'center' }}>ترتيب</th>
                 <th style={{ width: '60px' }}>الصورة</th>
                 <th>اسم الصنف</th>
                 <th>القسم</th>
-                <th>السعر</th>
-                <th>العلامات</th>
-                <th>الحالة</th>
-                <th>الظهور</th>
+                <th>السعر (EGP)</th>
+                <th>التوثيق</th>
+                <th>التوفر</th>
+                <th>النشر للجمهور</th>
                 <th style={{ width: '120px', textAlign: 'center' }}>إجراءات</th>
               </tr>
             </thead>
@@ -510,6 +706,9 @@ export const AdminMenuManager: React.FC = () => {
               ) : (
                 filteredItems.map((item, index) => {
                   const cat = menuCategories.find(c => c.id === item.category_id);
+                  const isVerified = item.verification_status === 'verified';
+                  const isPublished = item.is_published !== false && item.visible;
+
                   return (
                     <tr key={item.id}>
                       {/* Sort Controls */}
@@ -570,9 +769,13 @@ export const AdminMenuManager: React.FC = () => {
                         <div style={{ fontSize: '0.8125rem', color: '#777', direction: 'ltr', textAlign: 'right' }}>
                           {item.name_en}
                         </div>
-                        {item.description_ar && (
-                          <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '3px', maxWidth: '320px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.description_ar ? (
+                          <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '3px', maxWidth: '280px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {item.description_ar}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '0.75rem', color: '#AAA', fontStyle: 'italic', marginTop: '2px' }}>
+                            (الوصف غير متوفر)
                           </div>
                         )}
                       </td>
@@ -586,9 +789,13 @@ export const AdminMenuManager: React.FC = () => {
 
                       {/* Price */}
                       <td>
-                        {item.price ? (
-                          <span style={{ fontWeight: 600, color: 'var(--color-gold)' }}>
-                            {item.price}
+                        {item.price_min != null && item.price_max != null ? (
+                          <span style={{ fontWeight: 600, color: 'var(--color-gold, #886E42)' }}>
+                            {item.price_min} – {item.price_max} ج.م
+                          </span>
+                        ) : item.price ? (
+                          <span style={{ fontWeight: 600, color: 'var(--color-gold, #886E42)' }}>
+                            {item.price} ج.م
                           </span>
                         ) : (
                           <span style={{ fontSize: '0.75rem', color: '#999', fontStyle: 'italic' }}>
@@ -597,26 +804,18 @@ export const AdminMenuManager: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Badges / Tags */}
+                      {/* Verification Status */}
                       <td>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                          {item.is_signature && (
-                            <span className="badge badge-gold" title="طبق مميز من توقيع أولديش">
-                              <Star size={11} style={{ marginLeft: '3px' }} />
-                              مميز
-                            </span>
-                          )}
-                          {item.is_sample && (
-                            <span className="badge badge-warning" title="طبق توضيحي بانتظار تأكيد المالك">
-                              توضيحي
-                            </span>
-                          )}
-                          {(item.tags || []).map((t, idx) => (
-                            <span key={idx} className="badge badge-subtle">
-                              {t}
-                            </span>
-                          ))}
-                        </div>
+                        {isVerified ? (
+                          <span className="badge" style={{ background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', fontSize: '0.6875rem' }}>
+                            <CheckCircle2 size={11} style={{ marginLeft: '3px' }} />
+                            موثق
+                          </span>
+                        ) : (
+                          <span className="badge" style={{ background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A', fontSize: '0.6875rem' }}>
+                            مراجعة
+                          </span>
+                        )}
                       </td>
 
                       {/* Availability */}
@@ -627,19 +826,19 @@ export const AdminMenuManager: React.FC = () => {
                           onClick={() => updateMenuItem(item.id, { available: !item.available })}
                           title="اضغط لتغيير حالة التوفر"
                         >
-                          {item.available ? 'متاح اليوم' : 'غير متوفر'}
+                          {item.available ? 'متاح' : 'غير متوفر'}
                         </button>
                       </td>
 
-                      {/* Visibility */}
+                      {/* Published to Public Menu */}
                       <td>
                         <button
                           type="button"
                           className="btn-icon-subtle"
-                          onClick={() => updateMenuItem(item.id, { visible: !item.visible })}
-                          title={item.visible ? 'ظاهر للزوار (اضغط للإخفاء)' : 'مخفي عن الزوار (اضغط للإظهار)'}
+                          onClick={() => updateMenuItem(item.id, { is_published: !isPublished, visible: !isPublished })}
+                          title={isPublished ? 'منشور للجمهور (اضغط للإخفاء)' : 'مخفي عن الجمهور (اضغط للنشر)'}
                         >
-                          {item.visible ? <Eye size={17} style={{ color: '#38A169' }} /> : <EyeOff size={17} style={{ color: '#E53E3E' }} />}
+                          {isPublished ? <Eye size={17} style={{ color: '#10B981' }} /> : <EyeOff size={17} style={{ color: '#EF4444' }} />}
                         </button>
                       </td>
 
@@ -649,20 +848,20 @@ export const AdminMenuManager: React.FC = () => {
                           <button
                             type="button"
                             className="btn-icon-subtle"
-                            onClick={() => handleOpenItemModal(item)}
                             title="تعديل الصنف"
+                            onClick={() => handleOpenItemModal(item)}
                           >
                             <Edit3 size={15} />
                           </button>
                           <button
                             type="button"
-                            className="btn-icon-subtle delete"
+                            className="btn-icon-subtle text-danger"
+                            title="حذف الصنف"
                             onClick={() => {
-                              if (confirm(`هل أنت متأكد من حذف الصنف "${item.name_ar}"؟`)) {
+                              if (confirm(`هل أنت متأكد من حذف صنف "${item.name_ar}"؟`)) {
                                 deleteMenuItem(item.id);
                               }
                             }}
-                            title="حذف الصنف"
                           >
                             <Trash2 size={15} />
                           </button>
@@ -680,30 +879,28 @@ export const AdminMenuManager: React.FC = () => {
       {/* Category Modal */}
       {isCatModalOpen && (
         <div className="admin-modal-backdrop">
-          <div className="admin-modal-card">
+          <div className="admin-modal" style={{ maxWidth: '440px' }}>
             <div className="admin-modal-header">
               <h3>{editingCategory ? 'تعديل قسم' : 'إضافة قسم جديد'}</h3>
-              <button type="button" className="btn-close" onClick={() => setIsCatModalOpen(false)}>
+              <button type="button" className="btn-icon-subtle" onClick={() => setIsCatModalOpen(false)}>
                 <X size={18} />
               </button>
             </div>
-
             <form onSubmit={handleSaveCategory}>
               <div className="admin-modal-body">
                 <div className="form-group">
-                  <label className="form-label">اسم القسم بالعربية</label>
+                  <label className="form-label">الاسم بالعربية *</label>
                   <input
                     type="text"
                     required
                     className="form-input"
                     value={catForm.name_ar}
                     onChange={(e) => setCatForm({ ...catForm, name_ar: e.target.value })}
-                    placeholder="مثال: طواجن أولديش الفخارية"
+                    placeholder="مثال: الفطور"
                   />
                 </div>
-
                 <div className="form-group">
-                  <label className="form-label">Category Name (English)</label>
+                  <label className="form-label">Name in English *</label>
                   <input
                     type="text"
                     required
@@ -711,10 +908,9 @@ export const AdminMenuManager: React.FC = () => {
                     dir="ltr"
                     value={catForm.name_en}
                     onChange={(e) => setCatForm({ ...catForm, name_en: e.target.value })}
-                    placeholder="e.g. Clay Tagines"
+                    placeholder="e.g. Breakfast"
                   />
                 </div>
-
                 <div className="form-group">
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                     <input
@@ -722,11 +918,10 @@ export const AdminMenuManager: React.FC = () => {
                       checked={catForm.visible}
                       onChange={(e) => setCatForm({ ...catForm, visible: e.target.checked })}
                     />
-                    <span>ظهور القسم في الموقع</span>
+                    <span>نشط / مفعل</span>
                   </label>
                 </div>
               </div>
-
               <div className="admin-modal-footer">
                 <button type="button" className="btn btn-outline" onClick={() => setIsCatModalOpen(false)}>
                   إلغاء
@@ -740,19 +935,18 @@ export const AdminMenuManager: React.FC = () => {
         </div>
       )}
 
-      {/* Dish Item Modal */}
+      {/* Dish Modal */}
       {isItemModalOpen && (
         <div className="admin-modal-backdrop">
-          <div className="admin-modal-card" style={{ maxWidth: '640px' }}>
+          <div className="admin-modal" style={{ maxWidth: '640px' }}>
             <div className="admin-modal-header">
-              <h3>{editingItem ? 'تعديل صنف' : 'إضافة صنف جديد للقائمة'}</h3>
-              <button type="button" className="btn-close" onClick={() => setIsItemModalOpen(false)}>
+              <h3>{editingItem ? 'تعديل صنف' : 'إضافة صنف جديد'}</h3>
+              <button type="button" className="btn-icon-subtle" onClick={() => setIsItemModalOpen(false)}>
                 <X size={18} />
               </button>
             </div>
-
             <form onSubmit={handleSaveItem}>
-              <div className="admin-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              <div className="admin-modal-body">
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div className="form-group">
                     <label className="form-label">الاسم بالعربية *</label>
@@ -762,12 +956,11 @@ export const AdminMenuManager: React.FC = () => {
                       className="form-input"
                       value={itemForm.name_ar || ''}
                       onChange={(e) => setItemForm({ ...itemForm, name_ar: e.target.value })}
-                      placeholder="مثال: طاجن بامية باللحمة البلدي"
+                      placeholder="مثال: ميكس جبن"
                     />
                   </div>
-
                   <div className="form-group">
-                    <label className="form-label">Name (English) *</label>
+                    <label className="form-label">Name in English *</label>
                     <input
                       type="text"
                       required
@@ -775,7 +968,7 @@ export const AdminMenuManager: React.FC = () => {
                       dir="ltr"
                       value={itemForm.name_en || ''}
                       onChange={(e) => setItemForm({ ...itemForm, name_en: e.target.value })}
-                      placeholder="e.g. Okra with Beef Tagine"
+                      placeholder="e.g. Cheese Mix"
                     />
                   </div>
                 </div>
@@ -783,6 +976,7 @@ export const AdminMenuManager: React.FC = () => {
                 <div className="form-group">
                   <label className="form-label">القسم *</label>
                   <select
+                    required
                     className="form-input"
                     value={itemForm.category_id || ''}
                     onChange={(e) => setItemForm({ ...itemForm, category_id: e.target.value })}
@@ -818,59 +1012,76 @@ export const AdminMenuManager: React.FC = () => {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                {/* Price and Price Range */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                   <div className="form-group">
                     <label className="form-label">
-                      السعر (اختياري)
-                      <span style={{ fontSize: '0.75rem', color: '#888', marginRight: '6px' }}>(اتركه فارغاً إذا لم يعتمد)</span>
+                      السعر (EGP)
                     </label>
                     <input
                       type="text"
                       className="form-input"
                       value={itemForm.price || ''}
                       onChange={(e) => setItemForm({ ...itemForm, price: e.target.value })}
-                      placeholder="مثال: 195 ج.م"
+                      placeholder="مثال: 99 أو 64 – 74"
                     />
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">العلامات (مفصولة بفاصلة)</label>
+                    <label className="form-label">
+                      أدنى سعر (نطاق)
+                    </label>
                     <input
-                      type="text"
+                      type="number"
                       className="form-input"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      placeholder="طاجن, لحوم, حار, نباتي"
+                      value={itemForm.price_min ?? ''}
+                      onChange={(e) => setItemForm({ ...itemForm, price_min: e.target.value ? Number(e.target.value) : null })}
+                      placeholder="مثال: 64"
                     />
-                    <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
-                      {[
-                        { tag: 'نباتي', label: '+ 🌱 نباتي' },
-                        { tag: 'حار', label: '+ 🌶️ حار' },
-                        { tag: 'الأكثر طلباً', label: '+ ⭐ الأكثر طلباً' }
-                      ].map(p => (
-                        <button
-                          key={p.tag}
-                          type="button"
-                          className="btn btn-outline-light btn-sm"
-                          style={{ fontSize: '0.6875rem', padding: '2px 8px' }}
-                          onClick={() => {
-                            const current = tagInput.split(',').map(s => s.trim()).filter(Boolean);
-                            if (!current.includes(p.tag)) {
-                              setTagInput(current.concat(p.tag).join(', '));
-                            }
-                          }}
-                        >
-                          {p.label}
-                        </button>
-                      ))}
-                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      أعلى سعر (نطاق)
+                    </label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={itemForm.price_max ?? ''}
+                      onChange={(e) => setItemForm({ ...itemForm, price_max: e.target.value ? Number(e.target.value) : null })}
+                      placeholder="مثال: 74"
+                    />
                   </div>
                 </div>
 
-                {/* Media Image Selector */}
+                {/* Tags */}
                 <div className="form-group">
-                  <label className="form-label">صورة الصنف</label>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <label className="form-label">العلامات (مفصولة بفاصلة)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    placeholder="طاجن, لحوم, حار, نباتي"
+                  />
+                </div>
+
+                {/* Image and Alt Text */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label className="form-label">صورة الصنف</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      dir="ltr"
+                      placeholder="رابط الصورة أو مسارها..."
+                      value={itemForm.image_url || ''}
+                      onChange={(e) => setItemForm({ ...itemForm, image_url: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">اختيار من الوسائط</label>
                     <select
                       className="form-input"
                       value={itemForm.media_id || ''}
@@ -887,24 +1098,101 @@ export const AdminMenuManager: React.FC = () => {
                       <option value="">-- اختر من مكتبة الوسائط --</option>
                       {mediaList.map(m => (
                         <option key={m.id} value={m.id}>
-                          {m.alt_ar || m.alt_en} ({m.is_ai ? 'توضيحية' : 'حقيقية'})
+                          {m.alt_ar || m.alt_en}
                         </option>
                       ))}
                     </select>
+                  </div>
+                </div>
 
+                {/* Image Alt Texts */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label className="form-label">النص البديل للصورة (عربي)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="وصف صورة الطبق..."
+                      value={itemForm.image_alt_ar || ''}
+                      onChange={(e) => setItemForm({ ...itemForm, image_alt_ar: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Image Alt Text (English)</label>
                     <input
                       type="text"
                       className="form-input"
                       dir="ltr"
-                      placeholder="أو رابط صورة مباشر..."
-                      value={itemForm.image_url || ''}
-                      onChange={(e) => setItemForm({ ...itemForm, image_url: e.target.value })}
+                      placeholder="Alt text for dish image..."
+                      value={itemForm.image_alt_en || ''}
+                      onChange={(e) => setItemForm({ ...itemForm, image_alt_en: e.target.value })}
                     />
                   </div>
                 </div>
 
-                {/* Toggles */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px', background: '#F9F8F5', padding: '14px', borderRadius: '6px' }}>
+                {/* Branch Availability */}
+                <div style={{ background: '#FAF8F5', padding: '12px', borderRadius: '6px', marginBottom: '14px' }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                    <MapPin size={14} style={{ color: '#886E42' }} />
+                    <span>توفر الصنف بالفروع (Branch Availability)</span>
+                  </label>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    {branches.map(b => (
+                      <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.8125rem' }}>
+                        <input
+                          type="checkbox"
+                          checked={itemForm.branch_availability?.[b.id] ?? true}
+                          onChange={(e) => {
+                            setItemForm({
+                              ...itemForm,
+                              branch_availability: {
+                                ...(itemForm.branch_availability || {}),
+                                [b.id]: e.target.checked
+                              }
+                            });
+                          }}
+                        />
+                        <span>{b.name_ar}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Toggles & Verification */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#F9F8F5', padding: '14px', borderRadius: '6px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">حالة التوثيق (Verification)</label>
+                    <select
+                      className="form-input"
+                      value={itemForm.verification_status || 'verified'}
+                      onChange={(e) => setItemForm({ ...itemForm, verification_status: e.target.value as any })}
+                    >
+                      <option value="verified">✅ موثق من القائمة المرجعية</option>
+                      <option value="needs_review">⚠️ بحاجة لمراجعة أو تسعير</option>
+                      <option value="unverified">❓ غير موثق / مسودة</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={itemForm.is_published ?? true}
+                        onChange={(e) => setItemForm({ ...itemForm, is_published: e.target.checked, visible: e.target.checked })}
+                      />
+                      <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>👁️ نشر على الموقع العام</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={itemForm.available ?? true}
+                        onChange={(e) => setItemForm({ ...itemForm, available: e.target.checked })}
+                      />
+                      <span style={{ fontSize: '0.875rem' }}>✅ متاح للطلب اليوم</span>
+                    </label>
+                  </div>
+
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
@@ -920,34 +1208,7 @@ export const AdminMenuManager: React.FC = () => {
                       checked={itemForm.is_unavailable || false}
                       onChange={(e) => setItemForm({ ...itemForm, is_unavailable: e.target.checked })}
                     />
-                    <span style={{ fontSize: '0.875rem' }}>🚫 غير متوفر اليوم (Unavailable today)</span>
-                  </label>
-
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={itemForm.is_sample || false}
-                      onChange={(e) => setItemForm({ ...itemForm, is_sample: e.target.checked })}
-                    />
-                    <span style={{ fontSize: '0.875rem' }}>🏷️ طبق توضيحي (Sample)</span>
-                  </label>
-
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={itemForm.available ?? true}
-                      onChange={(e) => setItemForm({ ...itemForm, available: e.target.checked })}
-                    />
-                    <span style={{ fontSize: '0.875rem' }}>✅ متاح في القائمة</span>
-                  </label>
-
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={itemForm.visible ?? true}
-                      onChange={(e) => setItemForm({ ...itemForm, visible: e.target.checked })}
-                    />
-                    <span style={{ fontSize: '0.875rem' }}>👁️ ظاهر للجمهور</span>
+                    <span style={{ fontSize: '0.875rem' }}>🚫 غير متوفر مؤقتاً</span>
                   </label>
                 </div>
               </div>

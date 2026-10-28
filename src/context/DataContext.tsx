@@ -123,14 +123,14 @@ interface DataContextType {
   trackClick: (type: 'calls' | 'directions' | 'menu_views' | 'whatsapp_clicks' | 'reservation_requests') => void;
 }
 
-const DATA_SCHEMA_VERSION = 5;
+const DATA_SCHEMA_VERSION = 7;
 const STORAGE_KEY_SCHEMA_VERSION = 'oldish_data_schema_version';
-const STORAGE_KEY_PUBLISHED = 'oldish_published_data_v5';
-const STORAGE_KEY_DRAFT = 'oldish_draft_data_v5';
-const STORAGE_KEY_INQUIRIES = 'oldish_inquiries_v5';
-const STORAGE_KEY_INQUIRIES_RETRY = 'oldish_inquiries_retry_v5';
-const STORAGE_KEY_VERSIONS = 'oldish_versions_v5';
-const STORAGE_KEY_LOGS = 'oldish_logs_v5';
+const STORAGE_KEY_PUBLISHED = 'oldish_published_data_v7';
+const STORAGE_KEY_DRAFT = 'oldish_draft_data_v7';
+const STORAGE_KEY_INQUIRIES = 'oldish_inquiries_v7';
+const STORAGE_KEY_INQUIRIES_RETRY = 'oldish_inquiries_retry_v7';
+const STORAGE_KEY_VERSIONS = 'oldish_versions_v7';
+const STORAGE_KEY_LOGS = 'oldish_logs_v7';
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
@@ -289,6 +289,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const loadData = async () => {
       try {
+        // Schema check & purge stale cache
+        const prevSchema = localStorage.getItem(STORAGE_KEY_SCHEMA_VERSION);
+        if (prevSchema && Number(prevSchema) < DATA_SCHEMA_VERSION) {
+          localStorage.removeItem('oldish_published_data_v5');
+          localStorage.removeItem('oldish_draft_data_v5');
+          localStorage.removeItem('oldish_published_data_v6');
+          localStorage.removeItem('oldish_draft_data_v6');
+        }
+        localStorage.setItem(STORAGE_KEY_SCHEMA_VERSION, String(DATA_SCHEMA_VERSION));
         // 1. Fast local cache check for instant paint
         const cachedPublished = localStorage.getItem(STORAGE_KEY_PUBLISHED);
         const cachedDraft = localStorage.getItem(STORAGE_KEY_DRAFT);

@@ -3,7 +3,6 @@ import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
 import { Menu as MenuIcon, X, Globe, Phone, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { LiveCairoStatusBadge } from './LiveCairoStatusBadge';
 
 interface HeaderProps {
   activeSection: string;
@@ -75,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({ activeSection }) => {
                 style={{ maxHeight: '44px', width: 'auto', objectFit: 'contain' }}
               />
             ) : (
-              // Real wordmark: "Oldish" / "أولديش" — No "Cairo" or fabricated words in wordmark
+              // Real wordmark: "Oldish" / "أولديش" — Clean brand identity
               <div className="brand-wordmark-box" aria-label="Oldish Brand Wordmark">
                 <span className="brand-wordmark-en">Oldish</span>
                 <span className="brand-wordmark-ar">أولديش</span>
@@ -104,18 +103,13 @@ export const Header: React.FC<HeaderProps> = ({ activeSection }) => {
                 {isRTL ? sec.nav_label_ar : sec.nav_label_en}
               </a>
             ))}
-            <Link to="/menu" className="nav-link" title="Standalone Mobile Menu">
+            <Link to="/menu" className="nav-link" title={isRTL ? 'قائمة الطعام' : 'Menu'}>
               {isRTL ? 'المنيو السريع' : 'Quick Menu'}
             </Link>
           </nav>
 
           {/* Header Actions */}
           <div className="header-actions">
-            {/* Live Cairo Open/Closed Badge (Africa/Cairo) */}
-            <div className="desktop-only">
-              <LiveCairoStatusBadge variant="header" />
-            </div>
-
             {/* Language Switcher */}
             <button
               type="button"
@@ -133,7 +127,7 @@ export const Header: React.FC<HeaderProps> = ({ activeSection }) => {
               href={`tel:${siteSettings.phone.replace(/\s+/g, '')}`}
               onClick={() => trackClick('calls')}
               className="btn btn-outline-gold btn-sm desktop-only"
-              aria-label="Call Oldish"
+              aria-label={isRTL ? 'اتصل بمطعم أولديش' : 'Call Oldish'}
             >
               <Phone size={14} />
               <span>{isRTL ? 'اتصل بنا' : 'Call'}</span>

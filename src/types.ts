@@ -53,29 +53,69 @@ export interface ImageSlot {
   can_delete?: boolean;
 }
 
+export interface MenuItemVariant {
+  name_en: string;
+  name_ar: string;
+  price: number;
+}
+
+export interface MenuItemAddOn {
+  name_en: string;
+  name_ar: string;
+  price: number;
+}
+
 export interface MenuItem {
   id: string;
+  slug?: string;
   category_id: string;
   name_en: string;
   name_ar: string;
   description_en: string;
   description_ar: string;
-  price?: string | null; // Nullable - only shown if owner confirms
+  price?: string | null; // e.g. "99", "64 – 74", or formatted
+  price_num?: number | null; // Normalized numeric price for filtering & sorting
+  price_min?: number | null; // Range min when price range exists
+  price_max?: number | null; // Range max when price range exists
+  currency?: string; // e.g. "EGP"
   media_id?: string;
   image_url?: string;
+  image_alt_en?: string;
+  image_alt_ar?: string;
+  gallery_images?: string[];
   tags?: string[];
   is_signature?: boolean;
+  is_featured?: boolean;
   is_unavailable?: boolean; // Unavailable today toggle (greyed out with badge)
   is_sample?: boolean; // For dishes not yet confirmed by owner
+  is_published?: boolean;
+  is_vegetarian?: boolean;
+  is_vegan?: boolean;
+  is_spicy?: boolean;
+  allergens?: string[];
+  ingredients?: string[];
+  portion_size?: string;
+  variants?: MenuItemVariant[];
+  add_ons?: MenuItemAddOn[];
+  branch_prices?: Record<string, number | string>;
+  branch_availability?: Record<string, boolean>;
   available: boolean;
   sort_order: number;
   visible: boolean;
+  source_url?: string;
+  verification_status?: 'verified' | 'unverified' | 'needs_review';
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface MenuCategory {
   id: string;
+  slug?: string;
   name_en: string;
   name_ar: string;
+  description_en?: string;
+  description_ar?: string;
+  image_url?: string;
   sort_order: number;
   visible: boolean;
 }

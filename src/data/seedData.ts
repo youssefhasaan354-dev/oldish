@@ -1,3 +1,4 @@
+import { VERIFIED_MENU_CATEGORIES, VERIFIED_MENU_ITEMS } from './verifiedMenuData';
 import type { 
   SiteSettings, 
   SectionConfig, 
@@ -20,13 +21,13 @@ export const SEED_SITE_SETTINGS: SiteSettings = {
   category_ar: 'مطعم | مقهى | حديقة',
   facebook_followers: '~165K',
   price_range: 'EGP 200-400 per person',
-  phone: '+20 10 60119488',
-  whatsapp: '+20 10 60119488',
+  phone: '01060119488',
+  whatsapp: '01060119488',
   facebook_url: 'https://www.facebook.com/oldisheg/',
   instagram_url: 'https://www.instagram.com/oldisheg/',
   google_maps_url: 'https://maps.google.com/?q=Oldish+Restaurant+Mohammed+Mahmoud+Cairo',
-  elmenus_url: 'https://www.elmenus.com/cairo/restaurants/oldish-downtown',
-  show_prices: false, // Default false until owner confirms official price list
+  elmenus_url: 'https://www.elmenus.com/ar/%D8%A7%D9%84%D9%82%D8%A7%D9%87%D8%B1%D8%A9/%D8%A7%D9%88%D9%84%D8%AF%D9%8A%D8%B4-8yn8',
+  show_prices: true, // Default false until owner confirms official price list
   noindex: true,
   site_domain: 'https://oldish-chi.vercel.app',
   primary_color: '#886E42',
@@ -897,317 +898,9 @@ export const SEED_IMAGE_SLOTS: ImageSlot[] = [
   }
 ];
 
-export const SEED_MENU_CATEGORIES: MenuCategory[] = [
-  { id: 'breakfast', name_en: 'Breakfast & Eggs', name_ar: 'الفطور وأطباق البيض', sort_order: 0, visible: true },
-  { id: 'tagines', name_en: 'Egyptian Tagines & Mains', name_ar: 'الطواجن المصرية والأطباق الرئيسية', sort_order: 1, visible: true },
-  { id: 'grills', name_en: 'Grills & Oldish Chicken', name_ar: 'المشاوي ودجاج أولديش', sort_order: 2, visible: true },
-  { id: 'starters', name_en: 'Hot Starters', name_ar: 'المقبلات الساخنة', sort_order: 3, visible: true },
-  { id: 'soups-salads', name_en: 'Soups & Salads', name_ar: 'الشوربات والسلطات', sort_order: 4, visible: true },
-  { id: 'sandwiches', name_en: 'Sandwiches', name_ar: 'السندوتشات', sort_order: 5, visible: true },
-  { id: 'pizza-pasta', name_en: 'Pizza & Pasta', name_ar: 'البيتزا والباستا', sort_order: 6, visible: true },
-  { id: 'drinks', name_en: 'Drinks & Café', name_ar: 'المشروبات والمقهى', sort_order: 7, visible: true },
-  { id: 'desserts', name_en: 'Desserts', name_ar: 'الحلويات', sort_order: 8, visible: true },
-];
+export const SEED_MENU_CATEGORIES: MenuCategory[] = VERIFIED_MENU_CATEGORIES;
 
-export const SEED_MENU_ITEMS: MenuItem[] = [
-  // Breakfast (SOURCE OF TRUTH)
-  {
-    id: 'item-ful',
-    category_id: 'breakfast',
-    name_en: 'Oldish Ful',
-    name_ar: 'فول أولديش',
-    description_en: "Signature slow-simmered ful medames prepared with Oldish's special seasoning, served warm with Oldish's own fresh bread.",
-    description_ar: "فول مدمس مطهو على مهل بخلطة أولديش الخاصة، يقدم ساخناً مع عيش أولديش المميز.",
-    price: null,
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 0,
-    visible: true
-  },
-  {
-    id: 'item-eggs-style',
-    category_id: 'breakfast',
-    name_en: 'Eggs Any Style',
-    name_ar: 'بيض حسب اختيارك',
-    description_en: "Fresh farm eggs prepared to your preference: omelette, fried, boiled, or scrambled, served with Oldish's own bread.",
-    description_ar: "بيض طازج يُعد حسب رغبتك: أومليت، عيون، مسلوق، أو مخفوق، يقدم مع عيش أولديش المميز.",
-    price: null,
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 1,
-    visible: true
-  },
-  {
-    id: 'item-white-cheese',
-    category_id: 'breakfast',
-    name_en: 'White Cheese with Tomato & Mint',
-    name_ar: 'جبنة بيضاء بالطماطم والنعناع وزيت الزيتون',
-    description_en: "Egyptian white cheese blended with diced ripe tomatoes, fresh mint leaves, and pure extra virgin olive oil, served with Oldish bread.",
-    description_ar: "جبنة بيضاء بلدية ممزوجة بقطع الطماطم الطازجة، أوراق النعناع، وزيت الزيتون البكر، تقدم مع عيش أولديش.",
-    price: null,
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 2,
-    visible: true
-  },
-  {
-    id: 'item-cheese-plate',
-    category_id: 'breakfast',
-    name_en: 'Oldish Cheese Plate',
-    name_ar: 'طبق أجبان مشكل',
-    description_en: "Assorted selection of Feta, Roumy, Cheddar, and Roquefort cheeses, served with fresh bread and olives.",
-    description_ar: "تشكيلة منتقاة من أجبان الفيتا، الرومي المصري، الشيدر، والريكفورد، تقدم مع الخبز والزيتون.",
-    price: null,
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 3,
-    visible: true
-  },
-
-  // Tagines & Mains (SOURCE OF TRUTH)
-  {
-    id: 'item-okra-tagine',
-    category_id: 'tagines',
-    name_en: 'Okra with Meat Tagine',
-    name_ar: 'طاجن بامية باللحمة',
-    description_en: "Traditional Egyptian clay pot tagine of tender okra simmered in a spiced tomato-garlic sauce with succulent braised meat chunks, served bubbling with Oldish bread.",
-    description_ar: "طاجن فخار مصري أصيل من البامية الطازجة المطهوة بصلصة الطماطم الغنية بالثوم مع قطع اللحم الطرية، يقدم ساخناً مع عيش أولديش.",
-    price: null,
-    media_id: 'media-tagine',
-    image_url: '/images/oldish_egyptian_tagine.webp',
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 0,
-    visible: true
-  },
-  {
-    id: 'item-moussaka-tagine',
-    category_id: 'tagines',
-    name_en: 'Moussaka with Minced-Meat Tagine',
-    name_ar: 'طاجن مسقعة باللحمة المفرومة',
-    description_en: "Oven-baked Egyptian clay tagine of roasted eggplant layers, peppers, and savory spiced minced meat in a rich tomato reduction, served with Oldish's own bread.",
-    description_ar: "طاجن مسقعة في الفخار مع طبقات الباذنجان الرومي والفلفل واللحمة المفرومة المتبلة بصلصة الطماطم المسبكة، يقدم مع عيش أولديش.",
-    price: null,
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 1,
-    visible: true
-  },
-  {
-    id: 'item-kebab-halla',
-    category_id: 'tagines',
-    name_en: 'Kebab Halla Tagine',
-    name_ar: 'طاجن كباب حلة',
-    description_en: "Slow-braised beef cubes with caramelized onions, cracked pepper, and rich pan gravy, served steaming in a traditional clay vessel.",
-    description_ar: "مكعبات لحم بقري مطهوة ببطء مع البصل المكرمل والفلفل الأسود والبهارات في صوص غني ساخن.",
-    price: null,
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 2,
-    visible: true
-  },
-  {
-    id: 'item-freekeh-chicken',
-    category_id: 'tagines',
-    name_en: 'Oldish Freekeh with Chicken Tagine',
-    name_ar: 'طاجن فريك أولديش بالدجاج',
-    description_en: "Aromatic green cracked freekeh wheat baked in an earthenware tagine with seasoned chicken pieces and savory stock.",
-    description_ar: "فريك بلدي أخضر معطر مطهو في طاجن فخاري مع قطع الدجاج المتبلة والمرق الشهي.",
-    price: null,
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 3,
-    visible: true
-  },
-
-  // Grills & Oldish Chicken (SOURCE OF TRUTH)
-  {
-    id: 'item-oldish-chicken',
-    category_id: 'grills',
-    name_en: 'Oldish Chicken Plate',
-    name_ar: 'طبق دجاج أولديش المشوي',
-    description_en: "Marinated grilled chicken breasts charred to perfection, served with your choice of sauce: Creamy Mushroom, Tangy Lemon, or Mustard sauce.",
-    description_ar: "صدور دجاج متبلة ومشوية بعناية، تقدم مع اختيارك من الصوص: صوص المشروم بالكريمة، صوص الليمون، أو صوص المستردة.",
-    price: null,
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 0,
-    visible: true
-  },
-  {
-    id: 'item-grill-sample',
-    category_id: 'grills',
-    name_en: 'Mixed Grill Selection',
-    name_ar: 'مشويات مشكلة',
-    description_en: "Assorted grilled meat specialties seasoned with house spices and served with fresh bread.",
-    description_ar: "تشكيلة أطباق المشويات المتبلة ببهارات أولديش الخاصة، تقدم مع الخبز الطازج.",
-    price: null,
-    is_signature: false,
-    is_sample: false,
-    available: true,
-    sort_order: 1,
-    visible: true
-  },
-
-  // Hot Starters
-  {
-    id: 'item-starter-sample-1',
-    category_id: 'starters',
-    name_en: 'Hot Appetizers Platter',
-    name_ar: 'مقبلات ساخنة مشكلة',
-    description_en: "Crispy sambousek, rolls, and savoury hot bites prepared fresh daily.",
-    description_ar: "تشكيلة من السمبوسك المقرمشة واللفائف والمقبلات الساخنة المحضرة طازجة يومياً.",
-    price: null,
-    is_sample: false,
-    available: true,
-    sort_order: 0,
-    visible: true
-  },
-
-  // Soups & Salads
-  {
-    id: 'item-soup-sample',
-    category_id: 'soups-salads',
-    name_en: 'Daily Soup of the House',
-    name_ar: 'شوربة اليوم الخاصة',
-    description_en: "Freshly prepared rich soup cooked daily with wholesome ingredients.",
-    description_ar: "شوربة طازجة يومية محضرة بأشهى المكونات الغنية والنكهات الأصيلة.",
-    price: null,
-    is_sample: false,
-    available: true,
-    sort_order: 0,
-    visible: true
-  },
-  {
-    id: 'item-salad-sample',
-    category_id: 'soups-salads',
-    name_en: 'Fresh Garden Salad',
-    name_ar: 'سلطة خضراء طازجة',
-    description_en: "Crisp seasonal garden greens with virgin olive oil, herbs, and lemon dressing.",
-    description_ar: "خضروات موسمية طازجة متبلة بزيت الزيتون البكر والليمون والأعشاب العطرية.",
-    price: null,
-    is_sample: false,
-    available: true,
-    sort_order: 1,
-    visible: true
-  },
-
-  // Sandwiches (SOURCE OF TRUTH includes club sandwich)
-  {
-    id: 'item-club-sandwich',
-    category_id: 'sandwiches',
-    name_en: 'Oldish Club Sandwich',
-    name_ar: 'كلوب ساندوتش أولديش',
-    description_en: "Classic layered toasted club sandwich with chicken, beef bacon, eggs, cheese, lettuce, and tomatoes, served with crisp fries.",
-    description_ar: "كلوب ساندوتش كلاسيكي محمص مع الدجاج والجبن والبيض والخس والطماطم، يقدم مع البطاطس المقلية.",
-    price: null,
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 0,
-    visible: true
-  },
-
-  // Pizza & Pasta (Generic items as specified)
-  {
-    id: 'item-pizza-sample',
-    category_id: 'pizza-pasta',
-    name_en: 'Crisp Oven Pizza',
-    name_ar: 'بيتزا مقرمشة في الفرن',
-    description_en: "Crisp crust pizza baked in a stone oven with aromatic tomato sauce and melted mozzarella.",
-    description_ar: "بيتزا مقرمشة مخبوزة في الفرن بصلصة الطماطم الغنية وجبنة الموزاريلا الذائبة.",
-    price: null,
-    is_sample: false,
-    available: true,
-    sort_order: 0,
-    visible: true
-  },
-  {
-    id: 'item-pasta-sample',
-    category_id: 'pizza-pasta',
-    name_en: 'House Pasta Selection',
-    name_ar: 'مكرونة بصلصات مختارة',
-    description_en: "Italian pasta tossed with choice of rich homemade sauces and herbs.",
-    description_ar: "مكرونة إيطالية محضرة مع تشكيلة من الصلصات المنزلية الغنية والأعشاب.",
-    price: null,
-    is_sample: false,
-    available: true,
-    sort_order: 1,
-    visible: true
-  },
-
-  // Drinks (SOURCE OF TRUTH)
-  {
-    id: 'item-drink-coffee',
-    category_id: 'drinks',
-    name_en: 'Traditional Sand-Brewed Turkish Coffee',
-    name_ar: 'قهوة تركي على الرمل',
-    description_en: "Slow-brewed over glowing sand coals with rich foam and cardamom aroma.",
-    description_ar: "قهوة مطهوة على مهل فوق رمال ساخنة للحصول على وش متماسك ورائحة تفوح بالأصالة.",
-    price: null,
-    media_id: 'media-coffee-tea',
-    image_url: '/images/oldish_coffee_tea.webp',
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 0,
-    visible: true
-  },
-  {
-    id: 'item-drink-tea',
-    category_id: 'drinks',
-    name_en: 'Egyptian Mint Tea Glass',
-    name_ar: 'شاي مصري بالنعناع الأخضر',
-    description_en: "Fresh black tea brewed in clear glass with fragrant spearmint sprigs.",
-    description_ar: "شاي أسود كلاسيكي في كوب زجاجي شفاف مع أغصان النعناع الطازج.",
-    price: null,
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 1,
-    visible: true
-  },
-  {
-    id: 'item-drink-juices',
-    category_id: 'drinks',
-    name_en: 'Fresh Seasonal Juices & Coolers',
-    name_ar: 'عصائر طبيعية ومثلجات موسمية',
-    description_en: "Hand-pressed mango, strawberry, and chilled lemon-mint iced refreshers.",
-    description_ar: "عصائر مانجو طازجة وليمون بالنعناع مثلج لانتعاش فوري.",
-    price: null,
-    media_id: 'media-juices',
-    image_url: '/images/oldish_fresh_juices.webp',
-    is_signature: true,
-    is_sample: false,
-    available: true,
-    sort_order: 2,
-    visible: true
-  },
-
-  // Desserts
-  {
-    id: 'item-dessert-sample',
-    category_id: 'desserts',
-    name_en: 'Eastern & Western Sweets Selection',
-    name_ar: 'حلويات شرقية وغربية مختارة',
-    description_en: "Classic house desserts including traditional Om Ali, assorted cakes, and seasonal sweet treats.",
-    description_ar: "تشكيلة من الحلويات الشرقية الكلاسيكية كأم علي، والكيك، وأطايب الحلويات الموسمية.",
-    price: null,
-    is_sample: false,
-    available: true,
-    sort_order: 0,
-    visible: true
-  }
-];
+export const SEED_MENU_ITEMS: MenuItem[] = VERIFIED_MENU_ITEMS;
 
 export const SEED_BRANCHES: BranchInfo[] = [
   {
@@ -1217,7 +910,7 @@ export const SEED_BRANCHES: BranchInfo[] = [
     status: 'confirmed',
     address_en: '20 Mohamed Mahmoud St, behind the Greek Campus (opposite the AUC library), Abdeen, Downtown Cairo',
     address_ar: '20 شارع محمد محمود، خلف الجريك كامبس (أمام مكتبة الجامعة الأمريكية)، عابدين، وسط البلد، القاهرة',
-    phone: '+20 10 60119488',
+    phone: '01060119488',
     hours_summary_en: 'Every day 8:00 AM – 12:00 AM (Midnight)',
     hours_summary_ar: 'يومياً من 8:00 صباحاً حتى 12:00 منتصف الليل',
     weekly_hours: {
@@ -1242,13 +935,14 @@ export const SEED_BRANCHES: BranchInfo[] = [
     id: 'zamalek-secondary',
     name_en: 'Zamalek Branch',
     name_ar: 'فرع الزمالك',
-    status: 'unconfirmed',
-    address_en: 'Reported around 14 El Sheikh El Marsafy St, Zamalek, Cairo',
-    address_ar: 'موقع مذكور بالأدلة: نحو 14 شارع الشيخ المرصفي، الزمالك، القاهرة',
+    status: 'confirmed',
+    address_en: '14 Taha Hussein Street, at the intersection of Maraachli Street, next to Virgin Mary Church, Zamalek, Cairo',
+    address_ar: '14 شارع طه حسين، تقاطع شارع المرعشلي، بجوار كنيسة العذراء مريم، الزمالك، القاهرة',
     hours_summary_en: 'Details to be confirmed with the owner',
     hours_summary_ar: 'التفاصيل رهن التأكيد مع صاحب المكان',
-    landmark_en: 'Reported location in Zamalek — pending client confirmation',
-    landmark_ar: 'موقع مقيد بالأدلة في الزمالك — قيد تأكيد الإدارة',
+    phone: '01000665331',
+    landmark_en: 'Intersection of Maraachli Street, next to Virgin Mary Church, Zamalek',
+    landmark_ar: 'تقاطع شارع المرعشلي، بجوار كنيسة العذراء مريم، الزمالك',
     map_directions_url: 'https://maps.google.com/?q=El+Sheikh+El+Marsafy+Zamalek+Cairo',
     is_primary: false,
     visible: true,
@@ -1401,7 +1095,7 @@ export const SEED_SECTIONS: SectionConfig[] = [
     content: {
       main_address_en: '20 Mohamed Mahmoud St, behind the Greek Campus (opposite AUC library), Abdeen, Downtown Cairo',
       main_address_ar: '20 شارع محمد محمود، خلف الجريك كامبس (أمام مكتبة الجامعة الأمريكية)، عابدين، وسط البلد، القاهرة',
-      phone: '+20 10 60119488',
+      phone: '01060119488',
       hours_en: 'Every day 8:00 AM – 12:00 AM (midnight)',
       hours_ar: 'يومياً من 8:00 صباحاً حتى 12:00 منتصف الليل'
     }

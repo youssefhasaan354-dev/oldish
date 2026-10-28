@@ -163,25 +163,19 @@ html[dir="rtl"] .brand-sub {
 }
 
 @media (min-width: 992px) and (max-width: 1240px) {
-  .site-header .header-actions .desktop-only {
-    display: none !important;
-  }
   .desktop-nav {
-    gap: 8px;
+    gap: 10px;
   }
   .nav-link {
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     letter-spacing: 0.02em;
-    padding-inline: 2px;
+    padding-inline: 4px;
   }
   html[dir="rtl"] .nav-link {
-    font-size: 0.8125rem;
+    font-size: 0.84rem;
   }
-}
-
-@media (min-width: 1240px) and (max-width: 1340px) {
   .site-header .btn-outline-gold {
-    display: none !important;
+    padding-inline: 14px;
   }
 }
 
