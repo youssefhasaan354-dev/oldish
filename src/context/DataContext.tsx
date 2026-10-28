@@ -45,7 +45,7 @@ import { useAuth } from './AuthContext';
 import { saveBlob, clearAllBlobs } from '../lib/idbStorage';
 import { processImageUpload, validateImageFile } from '../lib/imageProcessor';
 import { trackAnalyticsEvent, captureException } from '../lib/monitoring';
-import { validatePublishedSnapshot } from '../lib/snapshotValidator';
+import { resolveEffectiveSiteData } from '../lib/dataResolutionEngine';
 
 interface DataContextType {
   siteSettings: SiteSettings;
@@ -137,18 +137,23 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isFirebaseActive = isFirebaseConfigured();
-  const { isAuthenticated, getIdToken, user } = useAuth();
+  const { isAuthenticated, getIdToken, user, role } = useAuth();
 
   const [isLoading, setIsLoading] = useState(true);
   const [hasUnsavedDraft, setHasUnsavedDraft] = useState(false);
   const [sessionUndoMap, setSessionUndoMap] = useState<Record<string, string>>({});
-  const [isPreviewMode] = useState(() => {
+  const [hasPreviewParam] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       return params.get('preview') === 'draft';
     }
     return false;
   });
+
+  // Role-verified administrative authority
+  const effectiveUserRole = user?.role || role || null;
+  const isAuthorizedAdmin = isAuthenticated && Boolean(effectiveUserRole && ['owner', 'editor', 'viewer'].includes(effectiveUserRole));
+  const isPreviewMode = Boolean(hasPreviewParam && isAuthorizedAdmin);
 
   // Primary State
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(SEED_SITE_SETTINGS);
@@ -290,7 +295,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const loadData = async () => {
       try {
-        // Schema check & purge stale cache
+        const isAdminRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+
+        // Schema check: safely purge only old legacy v5/v6 keys, never wipe valid v7 published cache
         const prevSchema = localStorage.getItem(STORAGE_KEY_SCHEMA_VERSION);
         if (prevSchema && Number(prevSchema) < DATA_SCHEMA_VERSION) {
           localStorage.removeItem('oldish_published_data_v5');
@@ -299,6 +306,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.removeItem('oldish_draft_data_v6');
         }
         localStorage.setItem(STORAGE_KEY_SCHEMA_VERSION, String(DATA_SCHEMA_VERSION));
+
         // 1. Fast local cache check for instant paint
         const cachedPublished = localStorage.getItem(STORAGE_KEY_PUBLISHED);
         const cachedDraft = localStorage.getItem(STORAGE_KEY_DRAFT);
@@ -316,52 +324,54 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try { setActivityLogs(JSON.parse(cachedLogs)); } catch {}
         }
 
-        // Apply local published cache immediately for fast render if verified
-        if (cachedPublished) {
-          try {
-            const parsed = JSON.parse(cachedPublished);
-            const validation = validatePublishedSnapshot(parsed);
-            if (validation.isValid) {
-              applySnapshotToState(parsed);
-            } else {
-              localStorage.removeItem(STORAGE_KEY_PUBLISHED);
-            }
-          } catch (e) {
-            console.warn('Error applying cached published:', e);
+        // Apply fast instant local paint using pure resolution engine
+        const localInitial = resolveEffectiveSiteData({
+          cachedPublishedRaw: cachedPublished,
+          cachedDraftRaw: cachedDraft,
+          isFirebaseActive: false,
+          isAuthenticated,
+          userRole: effectiveUserRole,
+          isAdminRoute,
+          hasPreviewParam
+        });
+
+        if (isMounted) {
+          setSiteSettings(localInitial.siteSettings);
+          setSections(localInitial.sections);
+          setMenuCategories(localInitial.menuCategories);
+          setMenuItems(localInitial.menuItems);
+          setBranches(localInitial.branches);
+          setRatingBadges(localInitial.ratingBadges);
+          setImageSlots(localInitial.imageSlots);
+          setHasUnsavedDraft(localInitial.hasUnsavedDraft);
+
+          if (localInitial.shouldPurgePublishedCache) {
+            localStorage.removeItem(STORAGE_KEY_PUBLISHED);
+          }
+          if (localInitial.shouldPurgeDraftCache) {
+            localStorage.removeItem(STORAGE_KEY_DRAFT);
           }
         }
 
-        // 2. Fetch live data from Firestore
+        // 2. Fetch live data from Firestore if active
         if (isFirebaseActive) {
+          let cloudPub: unknown = null;
+          let cloudDraft: unknown = null;
+
           try {
             // A. Anonymous visitors always load published/site from Firestore
-            const publishedSnap = await loadPublishedSite();
-            if (publishedSnap && isMounted) {
-              const validation = validatePublishedSnapshot(publishedSnap);
-              if (validation.isValid) {
-                applySnapshotToState(publishedSnap);
-                localStorage.setItem(STORAGE_KEY_PUBLISHED, JSON.stringify(publishedSnap));
-              } else {
-                console.info(`[Oldish Data Engine] Legacy/incomplete Firestore snapshot skipped (${validation.reason}). Preserving canonical verified data.`);
-              }
+            cloudPub = await loadPublishedSite().catch(() => null);
+
+            // B. If authenticated admin in authorized context, fetch cloud draft
+            if (isAuthorizedAdmin && (isAdminRoute || hasPreviewParam)) {
+              cloudDraft = await loadDraftSite().catch(() => null);
             }
 
-            // B. If authenticated admin, check for active draft & inquiries & versions
             if (isAuthenticated) {
-              const [draftSnap, firestoreInquiries, firestoreVersions] = await Promise.all([
-                loadDraftSite().catch(() => null),
+              const [firestoreInquiries, firestoreVersions] = await Promise.all([
                 loadInquiriesFromFirestore().catch(() => []),
                 loadVersionsFromFirestore().catch(() => [])
               ]);
-
-              if (draftSnap && isMounted) {
-                applySnapshotToState(draftSnap);
-                setHasUnsavedDraft(true);
-                localStorage.setItem(STORAGE_KEY_DRAFT, JSON.stringify(draftSnap));
-              } else if (cachedDraft && isMounted) {
-                applySnapshotToState(JSON.parse(cachedDraft));
-                setHasUnsavedDraft(true);
-              }
 
               if (firestoreInquiries.length > 0 && isMounted) {
                 setInquiries(firestoreInquiries);
@@ -375,16 +385,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } catch (netErr) {
             console.warn('Firestore live fetch note (falling back to cache/seed):', netErr);
-            if (cachedDraft && isAuthenticated) {
-              applySnapshotToState(JSON.parse(cachedDraft));
-              setHasUnsavedDraft(true);
-            }
           }
-        } else {
-          // Local Demo Mode: restore draft if present
-          if (cachedDraft) {
-            applySnapshotToState(JSON.parse(cachedDraft));
-            setHasUnsavedDraft(true);
+
+          const liveResolved = resolveEffectiveSiteData({
+            cachedPublishedRaw: localStorage.getItem(STORAGE_KEY_PUBLISHED),
+            cachedDraftRaw: localStorage.getItem(STORAGE_KEY_DRAFT),
+            cloudPublishedSnap: cloudPub,
+            cloudDraftSnap: cloudDraft,
+            isFirebaseActive: true,
+            isAuthenticated,
+            userRole: effectiveUserRole,
+            isAdminRoute,
+            hasPreviewParam
+          });
+
+          if (isMounted) {
+            setSiteSettings(liveResolved.siteSettings);
+            setSections(liveResolved.sections);
+            setMenuCategories(liveResolved.menuCategories);
+            setMenuItems(liveResolved.menuItems);
+            setBranches(liveResolved.branches);
+            setRatingBadges(liveResolved.ratingBadges);
+            setImageSlots(liveResolved.imageSlots);
+            setHasUnsavedDraft(liveResolved.hasUnsavedDraft);
+
+            if (liveResolved.publishedCacheToStore) {
+              localStorage.setItem(STORAGE_KEY_PUBLISHED, JSON.stringify(liveResolved.publishedCacheToStore));
+            }
+            if (liveResolved.draftCacheToStore) {
+              localStorage.setItem(STORAGE_KEY_DRAFT, JSON.stringify(liveResolved.draftCacheToStore));
+            }
+            if (liveResolved.shouldPurgePublishedCache) {
+              localStorage.removeItem(STORAGE_KEY_PUBLISHED);
+            }
+            if (liveResolved.shouldPurgeDraftCache) {
+              localStorage.removeItem(STORAGE_KEY_DRAFT);
+            }
           }
         }
 
@@ -453,7 +489,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isMounted = false;
       window.removeEventListener('online', handleOnline);
     };
-  }, [isFirebaseActive, isAuthenticated, applySnapshotToState]);
+  }, [isFirebaseActive, isAuthenticated, isPreviewMode, hasPreviewParam, effectiveUserRole, isAuthorizedAdmin]);
 
   // Image Slot Resolution helper
   const getImageForSlot = useCallback((slotKey: string, fallbackUrl?: string) => {

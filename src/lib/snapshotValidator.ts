@@ -194,3 +194,158 @@ export function validatePublishedSnapshot(snap: unknown): SnapshotValidationResu
     itemCount: s.menuItems.length
   };
 }
+
+/**
+ * Validates an administrative draft snapshot (stored locally or in cloud drafts).
+ * Unlike published snapshots, drafts may omit schema_version or carry uncommitted admin edits,
+ * but MUST satisfy structural integrity, ID uniqueness, referential integrity, and be free of
+ * corrupted legacy demo markers.
+ */
+export function validateDraftSnapshot(draft: unknown): SnapshotValidationResult {
+  if (!draft || typeof draft !== 'object') {
+    return { isValid: false, reason: 'Draft is null or not an object' };
+  }
+
+  const d = draft as Partial<PublishedSiteSnapshot> & { schema_version?: number };
+
+  // 1. Check schema_version: allow omission (undefined), but reject null and any invalid/non-numeric/negative/decimal values
+  const rawVersion = (draft as Record<string, unknown>).schema_version;
+  if (rawVersion === null) {
+    return {
+      isValid: false,
+      reason: 'Draft schema_version cannot be null'
+    };
+  }
+
+  if (rawVersion !== undefined) {
+    let ver: number;
+    if (typeof rawVersion === 'number') {
+      if (isNaN(rawVersion) || !Number.isFinite(rawVersion)) {
+        return {
+          isValid: false,
+          reason: `Draft schema_version cannot be NaN or Infinity: "${String(rawVersion)}"`
+        };
+      }
+      if (!Number.isInteger(rawVersion)) {
+        return {
+          isValid: false,
+          reason: `Draft schema_version must be an integer, got: ${rawVersion}`
+        };
+      }
+      if (rawVersion < 0) {
+        return {
+          isValid: false,
+          schemaVersion: rawVersion,
+          reason: `Draft schema_version cannot be negative: ${rawVersion}`
+        };
+      }
+      ver = rawVersion;
+    } else if (typeof rawVersion === 'string' && /^\d+$/.test(rawVersion.trim())) {
+      ver = parseInt(rawVersion.trim(), 10);
+    } else {
+      return {
+        isValid: false,
+        reason: `Draft schema_version is non-numeric or invalid format: "${String(rawVersion)}"`
+      };
+    }
+
+    if (ver < MIN_CANONICAL_SCHEMA_VERSION) {
+      return {
+        isValid: false,
+        schemaVersion: ver,
+        reason: `Draft schema version ${ver} is below minimum canonical required (${MIN_CANONICAL_SCHEMA_VERSION})`
+      };
+    }
+  }
+
+  // 2. Reject drafts carrying legacy demo markers (e.g. is_sample: true or demo section labels)
+  const demoCheck = hasLegacyDemoMarkers(d);
+  if (demoCheck.hasDemo) {
+    return {
+      isValid: false,
+      reason: `Corrupted legacy demo content detected in draft: ${demoCheck.reason}`
+    };
+  }
+
+  // 3. Structural validity & uniqueness: menuCategories
+  if (!Array.isArray(d.menuCategories) || d.menuCategories.length === 0) {
+    return {
+      isValid: false,
+      reason: 'Draft has no menu categories'
+    };
+  }
+
+  const categoryIds = new Set<string>();
+  for (const cat of d.menuCategories) {
+    if (!cat || !cat.id || typeof cat.id !== 'string' || (!cat.name_en && !cat.name_ar)) {
+      return {
+        isValid: false,
+        reason: 'Draft contains malformed category (missing id or name)'
+      };
+    }
+    if (categoryIds.has(cat.id)) {
+      return {
+        isValid: false,
+        reason: `Draft contains duplicate category ID: "${cat.id}"`
+      };
+    }
+    categoryIds.add(cat.id);
+  }
+
+  // 4. Structural validity, uniqueness & referential integrity: menuItems
+  if (!Array.isArray(d.menuItems) || d.menuItems.length === 0) {
+    return {
+      isValid: false,
+      reason: 'Draft has no menu items'
+    };
+  }
+
+  const itemIds = new Set<string>();
+  for (const item of d.menuItems) {
+    if (!item || !item.id || typeof item.id !== 'string' || !item.category_id || (!item.name_en && !item.name_ar)) {
+      return {
+        isValid: false,
+        reason: 'Draft contains malformed menu item (missing id, category_id, or name)'
+      };
+    }
+    if (itemIds.has(item.id)) {
+      return {
+        isValid: false,
+        reason: `Draft contains duplicate menu item ID: "${item.id}"`
+      };
+    }
+    if (!categoryIds.has(item.category_id)) {
+      return {
+        isValid: false,
+        reason: `Draft item "${item.id}" references non-existent category_id: "${item.category_id}"`
+      };
+    }
+    itemIds.add(item.id);
+  }
+
+  // 5. Structural validity & uniqueness: sections (if provided)
+  if (Array.isArray(d.sections) && d.sections.length > 0) {
+    const sectionKeys = new Set<string>();
+    for (const sec of d.sections) {
+      if (!sec || !sec.key || typeof sec.key !== 'string') {
+        return {
+          isValid: false,
+          reason: 'Draft contains malformed section (missing key)'
+        };
+      }
+      if (sectionKeys.has(sec.key)) {
+        return {
+          isValid: false,
+          reason: `Draft contains duplicate section key: "${sec.key}"`
+        };
+      }
+      sectionKeys.add(sec.key);
+    }
+  }
+
+  return {
+    isValid: true,
+    categoryCount: d.menuCategories.length,
+    itemCount: d.menuItems.length
+  };
+}

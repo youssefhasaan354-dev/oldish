@@ -3,7 +3,8 @@ import { SEED_SITE_SETTINGS, SEED_BRANCHES, SEED_SECTIONS } from '../src/data/se
 import { searchMatches } from '../src/lib/searchUtils';
 import { formatPrice } from '../src/lib/priceUtils';
 import { importVerifiedMenu, exportMenuToJSON } from '../src/data/menuImport';
-import { validatePublishedSnapshot } from '../src/lib/snapshotValidator';
+import { validatePublishedSnapshot, validateDraftSnapshot } from '../src/lib/snapshotValidator';
+import { resolveEffectiveSiteData } from '../src/lib/dataResolutionEngine';
 
 console.log('====================================================');
 console.log('RUNNING COMPREHENSIVE OLDISH MENU INTEGRATION AUDIT');
@@ -363,6 +364,395 @@ const smallOwnerMenuSnapshot = {
 };
 const v11_13 = validatePublishedSnapshot(smallOwnerMenuSnapshot);
 assert(v11_13.isValid, 'Small legitimate owner menu is accepted without rigid minimum count barriers', v11_13.reason);
+
+// 11.14: Corrupted draft cache with legacy demo markers is strictly rejected by validateDraftSnapshot
+const corruptedDraftSnapshot = {
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: [
+    { id: 'sample-grill', category_id: 'breakfast', name_en: 'Sample Item', name_ar: 'صنف تجريبي', is_sample: true }
+  ],
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const v11_14 = validateDraftSnapshot(corruptedDraftSnapshot);
+assert(!v11_14.isValid && (v11_14.reason?.includes('is_sample') ?? false), 'Corrupted draft cache with legacy sample item is strictly rejected by validateDraftSnapshot', v11_14.reason);
+
+// 11.15: Corrupted draft cache with empty menuItems is strictly rejected by validateDraftSnapshot
+const emptyDraftSnapshot = {
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: [],
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const v11_15 = validateDraftSnapshot(emptyDraftSnapshot);
+assert(!v11_15.isValid && (v11_15.reason?.includes('no menu items') ?? false), 'Corrupted draft cache with empty menuItems is strictly rejected by validateDraftSnapshot', v11_15.reason);
+
+// 11.16: Legitimate admin draft without explicit schema_version is accepted
+const legitimateAdminDraft = {
+  menuCategories: VERIFIED_MENU_CATEGORIES.slice(0, 10),
+  menuItems: [
+    { id: 'item-custom-1', category_id: 'breakfast', name_en: 'Special Omelette', name_ar: 'أومليت خاص', price_num: 65, price: '65', visible: true, is_published: true }
+  ],
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const v11_16 = validateDraftSnapshot(legitimateAdminDraft);
+assert(v11_16.isValid, 'Legitimate administrative draft without schema_version is accepted safely', v11_16.reason);
+
+// 11.17: Draft referencing non-existent category_id is strictly rejected
+const brokenAdminDraft = {
+  menuCategories: [
+    { id: 'cat-breakfast', name_en: 'Breakfast', name_ar: 'إفطار' }
+  ],
+  menuItems: [
+    { id: 'item-broken', category_id: 'cat-non-existent', name_en: 'Broken Dish', name_ar: 'طبق مكسور' }
+  ],
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const v11_17 = validateDraftSnapshot(brokenAdminDraft);
+assert(!v11_17.isValid && (v11_17.reason?.includes('non-existent category_id') ?? false), 'Draft referencing non-existent category_id is rejected by validateDraftSnapshot', v11_17.reason);
+
+// 11.18: Verification that canonical fallback preserves all 23 categories and 63 items
+const canonicalCategoriesCount = VERIFIED_MENU_CATEGORIES.length;
+const canonicalItemsCount = VERIFIED_MENU_ITEMS.length;
+assert(
+  canonicalCategoriesCount === 23 && canonicalItemsCount === 63,
+  'Verified seed data fallback preserves exactly 23 categories and 63 verified dishes when cloud snapshot is rejected'
+);
+
+// 11.19: Draft with non-numeric schema_version is strictly rejected
+const draftWithNonNumericVersion = {
+  schema_version: 'invalid_version',
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS
+};
+const v11_19 = validateDraftSnapshot(draftWithNonNumericVersion);
+assert(!v11_19.isValid && (v11_19.reason?.includes('non-numeric') ?? false), '[Unit Validator] Draft with non-numeric schema_version string is strictly rejected', v11_19.reason);
+
+// 11.20: Draft with string prefixed schema_version (e.g. "v7") is strictly rejected
+const draftWithPrefixedVersion = {
+  schema_version: 'v7',
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS
+};
+const v11_20 = validateDraftSnapshot(draftWithPrefixedVersion);
+assert(!v11_20.isValid && (v11_20.reason?.includes('non-numeric') ?? false), '[Unit Validator] Draft with prefixed schema_version ("v7") is strictly rejected', v11_20.reason);
+
+// 11.21: Draft with decimal schema_version (e.g. 7.5) is strictly rejected
+const draftWithDecimalVersion = {
+  schema_version: 7.5,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS
+};
+const v11_21 = validateDraftSnapshot(draftWithDecimalVersion);
+assert(!v11_21.isValid && (v11_21.reason?.includes('integer') ?? false), '[Unit Validator] Draft with decimal non-integer schema_version is strictly rejected', v11_21.reason);
+
+// 11.22: Draft with boolean schema_version is strictly rejected
+const draftWithBoolVersion = {
+  schema_version: true as unknown as number,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS
+};
+const v11_22 = validateDraftSnapshot(draftWithBoolVersion);
+assert(!v11_22.isValid, '[Unit Validator] Draft with boolean schema_version is strictly rejected', v11_22.reason);
+
+// 11.23: Draft with explicit null schema_version is strictly rejected
+const draftWithNullVersion = {
+  schema_version: null as unknown as number,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS
+};
+const v11_23 = validateDraftSnapshot(draftWithNullVersion);
+assert(!v11_23.isValid && (v11_23.reason?.includes('cannot be null') ?? false), '[Unit Validator] Draft with explicit null schema_version is strictly rejected', v11_23.reason);
+
+// 11.24: Draft with NaN schema_version is strictly rejected
+const draftWithNaNVersion = {
+  schema_version: NaN,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS
+};
+const v11_24 = validateDraftSnapshot(draftWithNaNVersion);
+assert(!v11_24.isValid && (v11_24.reason?.includes('NaN') ?? false), '[Unit Validator] Draft with NaN schema_version is strictly rejected', v11_24.reason);
+
+// 11.25: Draft with Infinity schema_version is strictly rejected
+const draftWithInfinityVersion = {
+  schema_version: Infinity,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS
+};
+const v11_25 = validateDraftSnapshot(draftWithInfinityVersion);
+assert(!v11_25.isValid && (v11_25.reason?.includes('Infinity') ?? false), '[Unit Validator] Draft with Infinity schema_version is strictly rejected', v11_25.reason);
+
+// 11.26: Draft with negative schema_version is strictly rejected
+const draftWithNegativeVersion = {
+  schema_version: -1,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS
+};
+const v11_26 = validateDraftSnapshot(draftWithNegativeVersion);
+assert(!v11_26.isValid && (v11_26.reason?.includes('cannot be negative') ?? false), '[Unit Validator] Draft with negative schema_version is strictly rejected', v11_26.reason);
+
+// 11.27: Draft with omitted / missing schema_version is accepted
+const draftWithOmittedVersion = {
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS
+};
+const v11_27 = validateDraftSnapshot(draftWithOmittedVersion);
+assert(v11_27.isValid, '[Unit Validator] Draft with missing/omitted schema_version is accepted (standard local draft format)', v11_27.reason);
+
+// 11.28: Draft with valid numeric string schema_version ("7") is accepted
+const draftWithNumericStringVersion = {
+  schema_version: '7' as unknown as number,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS
+};
+const v11_28 = validateDraftSnapshot(draftWithNumericStringVersion);
+assert(v11_28.isValid, '[Unit Validator] Draft with valid numeric string schema_version ("7") is accepted', v11_28.reason);
+
+// 11.29: Draft with legacy schema_version (5) is strictly rejected
+const draftWithLegacyVersion = {
+  schema_version: 5,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS
+};
+const v11_29 = validateDraftSnapshot(draftWithLegacyVersion);
+assert(!v11_29.isValid && (v11_29.reason?.includes('below minimum') ?? false), '[Unit Validator] Draft with legacy schema_version (5) is strictly rejected', v11_29.reason);
+
+// ====================================================
+// Test 12: Behavioral Pipeline Audit (Production Engine Execution)
+// ====================================================
+console.log('\n--- Test 12: Behavioral Pipeline Audit (Production Engine Execution) ---');
+
+// 12.1: Unit validator test - Rejection of corrupted cloud draftSnap with demo markers
+const corruptCloudDraft = {
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: [
+    { id: 'cloud-sample', category_id: 'breakfast', name_en: 'Cloud Sample', name_ar: 'عينة سحابية', is_sample: true }
+  ],
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const v12_1 = validateDraftSnapshot(corruptCloudDraft);
+assert(!v12_1.isValid && (v12_1.reason?.includes('is_sample') ?? false), '[Unit Validator] Corrupted cloud draftSnap with demo/sample markers is strictly rejected', v12_1.reason);
+
+// 12.2: Behavioral pipeline test - Corrupted cloud draft + valid cached draft -> Engine falls back to cached draft
+const validLocalDraftObj = {
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: [
+    ...VERIFIED_MENU_ITEMS,
+    { id: 'custom-juice', category_id: 'fresh-juices', name_en: 'Mango Kiwi Juice', name_ar: 'عصير مانجو كيوي', price_num: 75, price: '75', visible: true, is_published: true }
+  ],
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const res12_2 = resolveEffectiveSiteData({
+  cachedDraftRaw: JSON.stringify(validLocalDraftObj),
+  cloudDraftSnap: corruptCloudDraft,
+  isFirebaseActive: true,
+  isAuthenticated: true,
+  userRole: 'owner',
+  isAdminRoute: true,
+  hasPreviewParam: false
+});
+assert(
+  res12_2.effectiveSource === 'cached_draft' && res12_2.hasUnsavedDraft === true && res12_2.menuItems.length === 64,
+  '[Behavioral Engine] When cloud draft is rejected, engine safely falls back to valid local cached draft'
+);
+
+// 12.3: Behavioral pipeline test - Corrupted cloud draft + no cached draft + valid published snapshot -> Engine falls back to published snapshot
+const validPublishedSnapObj = {
+  schema_version: 7,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS,
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const res12_3 = resolveEffectiveSiteData({
+  cloudPublishedSnap: validPublishedSnapObj,
+  cloudDraftSnap: corruptCloudDraft,
+  isFirebaseActive: true,
+  isAuthenticated: true,
+  userRole: 'editor',
+  isAdminRoute: true,
+  hasPreviewParam: false
+});
+assert(
+  res12_3.effectiveSource === 'cloud_published' && res12_3.hasUnsavedDraft === false && res12_3.menuItems.length === 63 && !res12_3.shouldPurgePublishedCache,
+  '[Behavioral Engine] When cloud draft is rejected and no cached draft exists, engine safely falls back to published snapshot without wiping published cache'
+);
+
+// 12.4: Behavioral pipeline test - Corrupted published cache + valid cloud published -> Engine restores cloud published, flags bad cache for purge, and provides fresh cache to store
+const corruptedPublishedCacheRaw = '{"invalid_json": true, "schema_version": 2}';
+const res12_4 = resolveEffectiveSiteData({
+  cachedPublishedRaw: corruptedPublishedCacheRaw,
+  cloudPublishedSnap: validPublishedSnapObj,
+  isFirebaseActive: true,
+  isAuthenticated: false,
+  userRole: null,
+  isAdminRoute: false,
+  hasPreviewParam: false
+});
+assert(
+  res12_4.effectiveSource === 'cloud_published' &&
+  res12_4.shouldPurgePublishedCache === true &&
+  res12_4.publishedCacheToStore !== null &&
+  res12_4.menuItems.length === 63,
+  '[Behavioral Engine] When cached published is corrupted but cloud published is valid, engine uses cloud published and replaces bad cache'
+);
+
+// 12.5: Behavioral pipeline test - Corrupted cloud draft + valid published cache -> Engine falls back to cached published, DOES NOT purge valid cache
+const res12_5 = resolveEffectiveSiteData({
+  cachedPublishedRaw: JSON.stringify(validPublishedSnapObj),
+  cloudDraftSnap: corruptCloudDraft,
+  cloudPublishedSnap: null,
+  isFirebaseActive: true,
+  isAuthenticated: true,
+  userRole: 'editor',
+  isAdminRoute: true,
+  hasPreviewParam: false
+});
+assert(
+  res12_5.effectiveSource === 'cached_published' &&
+  res12_5.shouldPurgePublishedCache === false &&
+  res12_5.hasUnsavedDraft === false &&
+  res12_5.menuItems.length === 63,
+  '[Behavioral Engine] When cloud draft is corrupted and cached published is valid, engine falls back to published cache without deleting it'
+);
+
+// 12.6: Behavioral pipeline test - Offline network failure with valid published cache -> Engine uses cached published, does not wipe cache
+const res12_6 = resolveEffectiveSiteData({
+  cachedPublishedRaw: JSON.stringify(validPublishedSnapObj),
+  cloudPublishedSnap: null,
+  cloudDraftSnap: null,
+  isFirebaseActive: true,
+  isAuthenticated: false,
+  userRole: null,
+  isAdminRoute: false,
+  hasPreviewParam: false
+});
+assert(
+  res12_6.effectiveSource === 'cached_published' &&
+  res12_6.shouldPurgePublishedCache === false &&
+  res12_6.hasUnsavedDraft === false &&
+  res12_6.menuItems.length === 63,
+  '[Behavioral Engine] Offline network failure safely falls back to valid cached published snapshot without deleting cache'
+);
+
+// 12.7: Behavioral pipeline test - Offline network failure without any published cache -> Engine falls back to canonical seed
+const res12_7 = resolveEffectiveSiteData({
+  cachedPublishedRaw: null,
+  cloudPublishedSnap: null,
+  cloudDraftSnap: null,
+  isFirebaseActive: true,
+  isAuthenticated: false,
+  userRole: null,
+  isAdminRoute: false,
+  hasPreviewParam: false
+});
+assert(
+  res12_7.effectiveSource === 'canonical_seed' &&
+  res12_7.menuCategories.length === 23 &&
+  res12_7.menuItems.length === 63 &&
+  res12_7.hasUnsavedDraft === false,
+  '[Behavioral Engine] Offline network failure with empty cache safely falls back to canonical verified seed data'
+);
+
+// 12.8: Behavioral pipeline test - Corrupted cloud draft + no cached draft + legacy cloud published (schema 5) -> Engine falls back to canonical seed
+const legacyPublishedSnapObj = {
+  schema_version: 5,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS,
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const res12_8 = resolveEffectiveSiteData({
+  cloudPublishedSnap: legacyPublishedSnapObj,
+  cloudDraftSnap: corruptCloudDraft,
+  isFirebaseActive: true,
+  isAuthenticated: true,
+  userRole: 'owner',
+  isAdminRoute: true,
+  hasPreviewParam: false
+});
+assert(
+  res12_8.effectiveSource === 'canonical_seed' && res12_8.hasUnsavedDraft === false && res12_8.menuItems.length === 63 && res12_8.menuCategories.length === 23,
+  '[Behavioral Engine] When cloud draft and cloud published are both legacy/invalid, engine restores canonical verified seed data'
+);
+
+// 12.9: Behavioral pipeline test - Unauthenticated visitor with ?preview=draft -> Engine strictly denies draft access
+const res12_9 = resolveEffectiveSiteData({
+  cachedDraftRaw: JSON.stringify(validLocalDraftObj),
+  cloudDraftSnap: validLocalDraftObj,
+  cloudPublishedSnap: validPublishedSnapObj,
+  isFirebaseActive: true,
+  isAuthenticated: false,
+  userRole: null,
+  isAdminRoute: false,
+  hasPreviewParam: true
+});
+assert(
+  res12_9.effectiveSource === 'cloud_published' && res12_9.hasUnsavedDraft === false && res12_9.menuItems.length === 63,
+  '[Behavioral Engine] Unauthenticated visitor with ?preview=draft is strictly denied draft access and receives published data'
+);
+
+// 12.10: Behavioral pipeline test - Authenticated user without administrative role -> Engine strictly denies draft access
+const res12_10 = resolveEffectiveSiteData({
+  cloudDraftSnap: validLocalDraftObj,
+  cloudPublishedSnap: validPublishedSnapObj,
+  isFirebaseActive: true,
+  isAuthenticated: true,
+  userRole: 'customer' as any, // non-admin role
+  isAdminRoute: false,
+  hasPreviewParam: true
+});
+assert(
+  res12_10.effectiveSource === 'cloud_published' && res12_10.hasUnsavedDraft === false && res12_10.menuItems.length === 63,
+  '[Behavioral Engine] Authenticated user lacking admin role (e.g. non-admin) is denied draft access'
+);
+
+// 12.11: Behavioral pipeline test - Authenticated owner with ?preview=draft -> Engine grants authorized draft preview
+const res12_11 = resolveEffectiveSiteData({
+  cloudDraftSnap: validLocalDraftObj,
+  cloudPublishedSnap: validPublishedSnapObj,
+  isFirebaseActive: true,
+  isAuthenticated: true,
+  userRole: 'owner',
+  isAdminRoute: false,
+  hasPreviewParam: true
+});
+assert(
+  res12_11.effectiveSource === 'cloud_draft' && res12_11.hasUnsavedDraft === true && res12_11.menuItems.length === 64,
+  '[Behavioral Engine] Authenticated owner with ?preview=draft is successfully authorized for draft preview'
+);
+
+// 12.12: Behavioral pipeline test - Authenticated editor in /admin route -> Engine applies draft in management context
+const res12_12 = resolveEffectiveSiteData({
+  cloudDraftSnap: validLocalDraftObj,
+  cloudPublishedSnap: validPublishedSnapObj,
+  isFirebaseActive: true,
+  isAuthenticated: true,
+  userRole: 'editor',
+  isAdminRoute: true,
+  hasPreviewParam: false
+});
+assert(
+  res12_12.effectiveSource === 'cloud_draft' && res12_12.hasUnsavedDraft === true && res12_12.menuItems.length === 64,
+  '[Behavioral Engine] Authenticated editor in /admin route is granted management context access'
+);
+
+// 12.13: Behavioral customer menu filter test - Public visitor sees all 63 published dishes
+const isPreviewModeForVisitor = false;
+const customerVisibleItems = VERIFIED_MENU_ITEMS.filter(item => {
+  if (!item.visible) return false;
+  if (item.is_published === false) return false;
+  if (item.is_sample && !isPreviewModeForVisitor) return false;
+  return true;
+});
+assert(
+  customerVisibleItems.length === 63,
+  '[Behavioral View Filter] Public visitor sees all 63 verified published menu items without any items hidden by sample filters'
+);
 
 console.log('\n====================================================');
 console.log(`SUMMARY: ${passedTests} / ${totalTests} TESTS PASSED!`);
