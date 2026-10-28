@@ -1,8 +1,9 @@
-import { VERIFIED_MENU_CATEGORIES, VERIFIED_MENU_ITEMS, VERIFIED_SOURCE_URL } from '../src/data/verifiedMenuData';
-import { SEED_SITE_SETTINGS, SEED_BRANCHES, SEED_MENU_CATEGORIES, SEED_MENU_ITEMS } from '../src/data/seedData';
-import { searchMatches, normalizeArabic } from '../src/lib/searchUtils';
-import { formatPrice, getItemPriceNumber } from '../src/lib/priceUtils';
-import { importVerifiedMenu, exportMenuToJSON, validateMenuItem } from '../src/data/menuImport';
+import { VERIFIED_MENU_CATEGORIES, VERIFIED_MENU_ITEMS } from '../src/data/verifiedMenuData';
+import { SEED_SITE_SETTINGS, SEED_BRANCHES, SEED_SECTIONS } from '../src/data/seedData';
+import { searchMatches } from '../src/lib/searchUtils';
+import { formatPrice } from '../src/lib/priceUtils';
+import { importVerifiedMenu, exportMenuToJSON } from '../src/data/menuImport';
+import { validatePublishedSnapshot } from '../src/lib/snapshotValidator';
 
 console.log('====================================================');
 console.log('RUNNING COMPREHENSIVE OLDISH MENU INTEGRATION AUDIT');
@@ -196,6 +197,172 @@ console.log('\n--- Test 10: JSON Export / Import Schema ---');
 const jsonExport = exportMenuToJSON(VERIFIED_MENU_CATEGORIES, VERIFIED_MENU_ITEMS);
 const parsed = JSON.parse(jsonExport);
 assert(parsed.total_categories === 23 && parsed.total_items === 63, 'JSON export contains valid schema with 23 categories and 63 items');
+
+// Test 11: Snapshot Integrity & Firestore Validation
+console.log('\n--- Test 11: Firestore Snapshot Validation & Forward Compatibility ---');
+
+// 11.1: Legacy Firestore snapshot (schema_version 5, legacy sample items, demo section)
+const legacyFirestoreSnapshot = {
+  schema_version: 5,
+  menuCategories: Array(9).fill({ id: 'cat', name_en: 'Cat', name_ar: 'تصنيف' }),
+  menuItems: Array(20).fill({ id: 'item', category_id: 'cat', name_en: 'Sample Item', name_ar: 'صنف تجريبي', is_sample: true }),
+  sections: [
+    { key: 'reservations', nav_label_en: 'Reserve (Demo)', nav_label_ar: 'طلب حجز (تجريبي)', sort_order: 6, visible: true }
+  ],
+  siteSettings: { brand_name_en: 'Oldish', demo_banner_enabled: true }
+};
+const v11_1 = validatePublishedSnapshot(legacyFirestoreSnapshot);
+assert(!v11_1.isValid, 'Legacy schema_version 5 snapshot is strictly rejected', v11_1.reason);
+
+// 11.2: Snapshot with legacy demo section titles
+const demoSectionSnapshot = {
+  schema_version: 7,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS,
+  sections: [
+    { key: 'reservations', nav_label_en: 'Reserve (Demo)', nav_label_ar: 'طلب حجز (تجريبي)', sort_order: 6, visible: true }
+  ]
+};
+const v11_2 = validatePublishedSnapshot(demoSectionSnapshot);
+assert(!v11_2.isValid && (v11_2.reason?.includes('contains demo label') ?? false), 'Snapshot with "Reserve (Demo)" is rejected rather than disguised', v11_2.reason);
+
+// 11.3: Snapshot with legacy sample items (is_sample: true)
+const sampleItemSnapshot = {
+  schema_version: 7,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: [
+    { id: 'item-grill-sample', category_id: 'breakfast', name_en: 'Mixed Grill (Sample item)', name_ar: 'مشويات (صنف تجريبي)', is_sample: true },
+    ...VERIFIED_MENU_ITEMS
+  ]
+};
+const v11_3 = validatePublishedSnapshot(sampleItemSnapshot);
+assert(!v11_3.isValid && (v11_3.reason?.includes('is_sample') ?? false), 'Snapshot with sample/demo item is rejected', v11_3.reason);
+
+// 11.4: Snapshot with demo_banner_enabled: true
+const demoBannerSnapshot = {
+  schema_version: 7,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS,
+  siteSettings: { ...SEED_SITE_SETTINGS, demo_banner_enabled: true }
+};
+const v11_4 = validatePublishedSnapshot(demoBannerSnapshot);
+assert(!v11_4.isValid && (v11_4.reason?.includes('demo_banner_enabled') ?? false), 'Snapshot with demo_banner_enabled: true is rejected', v11_4.reason);
+
+// 11.5: Snapshot with empty/malformed categories or items
+const emptyMenuSnapshot = {
+  schema_version: 7,
+  menuCategories: [],
+  menuItems: []
+};
+const v11_5 = validatePublishedSnapshot(emptyMenuSnapshot);
+assert(!v11_5.isValid && (v11_5.reason?.includes('no menu categories') ?? false), 'Empty categories snapshot is rejected', v11_5.reason);
+
+// 11.6: Forward compatibility - Legitimate owner changes (e.g. menu customized to 15 categories, 35 dishes)
+const customOwnerSnapshot = {
+  schema_version: 7,
+  menuCategories: VERIFIED_MENU_CATEGORIES.slice(0, 15),
+  menuItems: VERIFIED_MENU_ITEMS.slice(0, 35),
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const v11_6 = validatePublishedSnapshot(customOwnerSnapshot);
+assert(v11_6.isValid, 'Future legitimate owner edits (customized category/dish counts) are accepted', v11_6.reason);
+
+// 11.7: Valid full canonical snapshot (schema_version 7, 23 categories, 63 dishes)
+const fullCanonicalSnapshot = {
+  schema_version: 7,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS,
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const v11_7 = validatePublishedSnapshot(fullCanonicalSnapshot);
+assert(v11_7.isValid, 'Full verified canonical snapshot is accepted', v11_7.reason);
+
+// 11.8: Null and undefined (network / Firestore failure)
+assert(!validatePublishedSnapshot(null).isValid, 'Null snapshot (network failure) is rejected safely');
+assert(!validatePublishedSnapshot(undefined).isValid, 'Undefined snapshot is rejected safely');
+
+// 11.9: Duplicate category IDs
+const duplicateCategorySnapshot = {
+  schema_version: 7,
+  menuCategories: [
+    { id: 'cat-breakfast', name_en: 'Breakfast', name_ar: 'إفطار' },
+    { id: 'cat-breakfast', name_en: 'Breakfast Duplicate', name_ar: 'إفطار مكرر' }
+  ],
+  menuItems: [
+    { id: 'item-1', category_id: 'cat-breakfast', name_en: 'Omelette', name_ar: 'أومليت' }
+  ],
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const v11_9 = validatePublishedSnapshot(duplicateCategorySnapshot);
+assert(!v11_9.isValid && (v11_9.reason?.includes('duplicate category ID') ?? false), 'Snapshot with duplicate category ID is strictly rejected', v11_9.reason);
+
+// 11.10: Duplicate menu item IDs
+const duplicateItemSnapshot = {
+  schema_version: 7,
+  menuCategories: [
+    { id: 'cat-breakfast', name_en: 'Breakfast', name_ar: 'إفطار' }
+  ],
+  menuItems: [
+    { id: 'item-duplicate', category_id: 'cat-breakfast', name_en: 'Item 1', name_ar: 'صنف 1' },
+    { id: 'item-duplicate', category_id: 'cat-breakfast', name_en: 'Item 2', name_ar: 'صنف 2' }
+  ],
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const v11_10 = validatePublishedSnapshot(duplicateItemSnapshot);
+assert(!v11_10.isValid && (v11_10.reason?.includes('duplicate menu item ID') ?? false), 'Snapshot with duplicate menu item ID is strictly rejected', v11_10.reason);
+
+// 11.11: Referential integrity violation (item references non-existent category_id)
+const orphanedItemSnapshot = {
+  schema_version: 7,
+  menuCategories: [
+    { id: 'cat-breakfast', name_en: 'Breakfast', name_ar: 'إفطار' }
+  ],
+  menuItems: [
+    { id: 'item-valid', category_id: 'cat-breakfast', name_en: 'Valid Item', name_ar: 'صنف سليم' },
+    { id: 'item-orphan', category_id: 'cat-non-existent-ghost', name_en: 'Orphan Item', name_ar: 'صنف بدون تصنيف' }
+  ],
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const v11_11 = validatePublishedSnapshot(orphanedItemSnapshot);
+assert(!v11_11.isValid && (v11_11.reason?.includes('references non-existent category_id') ?? false), 'Snapshot with orphaned item (invalid category_id) is strictly rejected', v11_11.reason);
+
+// 11.12: Duplicate section keys
+const duplicateSectionSnapshot = {
+  schema_version: 7,
+  menuCategories: VERIFIED_MENU_CATEGORIES,
+  menuItems: VERIFIED_MENU_ITEMS,
+  sections: [
+    { key: 'hero', nav_label_en: 'Hero', nav_label_ar: 'الرئيسية', sort_order: 0, visible: true },
+    { key: 'hero', nav_label_en: 'Hero 2', nav_label_ar: 'الرئيسية 2', sort_order: 1, visible: true }
+  ],
+  siteSettings: SEED_SITE_SETTINGS
+};
+const v11_12 = validatePublishedSnapshot(duplicateSectionSnapshot);
+assert(!v11_12.isValid && (v11_12.reason?.includes('duplicate section key') ?? false), 'Snapshot with duplicate section key is strictly rejected', v11_12.reason);
+
+// 11.13: Legitimate small owner menu (e.g. 2 categories, 4 dishes) accepted without rigid count thresholds
+const smallOwnerMenuSnapshot = {
+  schema_version: 7,
+  menuCategories: [
+    { id: 'morning-coffee', name_en: 'Morning Coffee', name_ar: 'قهوة الصباح' },
+    { id: 'pastries', name_en: 'Fresh Pastries', name_ar: 'مخبوزات طازجة' }
+  ],
+  menuItems: [
+    { id: 'espresso', category_id: 'morning-coffee', name_en: 'Espresso', name_ar: 'إسبريسو' },
+    { id: 'latte', category_id: 'morning-coffee', name_en: 'Caffè Latte', name_ar: 'لاتيه' },
+    { id: 'croissant-butter', category_id: 'pastries', name_en: 'Butter Croissant', name_ar: 'كرواسون زبدة' },
+    { id: 'pain-choc', category_id: 'pastries', name_en: 'Pain au Chocolat', name_ar: 'بان أو شوكولا' }
+  ],
+  sections: SEED_SECTIONS,
+  siteSettings: SEED_SITE_SETTINGS
+};
+const v11_13 = validatePublishedSnapshot(smallOwnerMenuSnapshot);
+assert(v11_13.isValid, 'Small legitimate owner menu is accepted without rigid minimum count barriers', v11_13.reason);
 
 console.log('\n====================================================');
 console.log(`SUMMARY: ${passedTests} / ${totalTests} TESTS PASSED!`);

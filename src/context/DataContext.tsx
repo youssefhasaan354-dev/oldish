@@ -45,6 +45,7 @@ import { useAuth } from './AuthContext';
 import { saveBlob, clearAllBlobs } from '../lib/idbStorage';
 import { processImageUpload, validateImageFile } from '../lib/imageProcessor';
 import { trackAnalyticsEvent, captureException } from '../lib/monitoring';
+import { validatePublishedSnapshot } from '../lib/snapshotValidator';
 
 interface DataContextType {
   siteSettings: SiteSettings;
@@ -315,10 +316,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try { setActivityLogs(JSON.parse(cachedLogs)); } catch {}
         }
 
-        // Apply local published cache immediately for fast render
+        // Apply local published cache immediately for fast render if verified
         if (cachedPublished) {
           try {
-            applySnapshotToState(JSON.parse(cachedPublished));
+            const parsed = JSON.parse(cachedPublished);
+            const validation = validatePublishedSnapshot(parsed);
+            if (validation.isValid) {
+              applySnapshotToState(parsed);
+            } else {
+              localStorage.removeItem(STORAGE_KEY_PUBLISHED);
+            }
           } catch (e) {
             console.warn('Error applying cached published:', e);
           }
@@ -330,8 +337,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // A. Anonymous visitors always load published/site from Firestore
             const publishedSnap = await loadPublishedSite();
             if (publishedSnap && isMounted) {
-              applySnapshotToState(publishedSnap);
-              localStorage.setItem(STORAGE_KEY_PUBLISHED, JSON.stringify(publishedSnap));
+              const validation = validatePublishedSnapshot(publishedSnap);
+              if (validation.isValid) {
+                applySnapshotToState(publishedSnap);
+                localStorage.setItem(STORAGE_KEY_PUBLISHED, JSON.stringify(publishedSnap));
+              } else {
+                console.info(`[Oldish Data Engine] Legacy/incomplete Firestore snapshot skipped (${validation.reason}). Preserving canonical verified data.`);
+              }
             }
 
             // B. If authenticated admin, check for active draft & inquiries & versions
