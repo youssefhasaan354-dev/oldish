@@ -181,17 +181,38 @@ async function runTests() {
     });
     const p4 = tooManyGuestsRes.status === 400;
 
-    // 3e: Invalid type
-    const badTypeRes = await request(port, {
-      body: { type: 'hacked_type', name: 'سامي مراد', phone: '01012345678' },
+    // 3e: Guests not an integer (e.g. float 2.5)
+    const floatGuestsRes = await request(port, {
+      body: { type: 'reservation_request', name: 'سامي مراد', phone: '01012345678', guests: 2.5 },
       headers: { 'x-forwarded-for': '192.168.1.107' },
     });
-    const p5 = badTypeRes.status === 400;
+    const p5 = floatGuestsRes.status === 400;
 
-    if (p1 && p2 && p3 && p4 && p5) {
-      console.log('  ✅ PASSED: All invalid field inputs rejected with 400');
+    // 3f: Invalid calendar date (e.g. 2026-13-45)
+    const impossibleDateRes = await request(port, {
+      body: { type: 'reservation_request', name: 'سامي مراد', phone: '01012345678', date: '2026-13-45' },
+      headers: { 'x-forwarded-for': '192.168.1.108' },
+    });
+    const p6 = impossibleDateRes.status === 400;
+
+    // 3g: Past date (e.g. 2020-01-01)
+    const pastDateRes = await request(port, {
+      body: { type: 'reservation_request', name: 'سامي مراد', phone: '01012345678', date: '2020-01-01' },
+      headers: { 'x-forwarded-for': '192.168.1.109' },
+    });
+    const p7 = pastDateRes.status === 400;
+
+    // 3h: Invalid type
+    const badTypeRes = await request(port, {
+      body: { type: 'hacked_type', name: 'سامي مراد', phone: '01012345678' },
+      headers: { 'x-forwarded-for': '192.168.1.110' },
+    });
+    const p8 = badTypeRes.status === 400;
+
+    if (p1 && p2 && p3 && p4 && p5 && p6 && p7 && p8) {
+      console.log('  ✅ PASSED: All invalid field inputs (short name, bad phone, email, guests > 20, float guests, impossible date, past date, invalid type) rejected with 400');
     } else {
-      console.error('  ❌ FAILED: Invalid field rejection check failed:', { p1, p2, p3, p4, p5 });
+      console.error('  ❌ FAILED: Invalid field rejection check failed:', { p1, p2, p3, p4, p5, p6, p7, p8 });
       allPassed = false;
     }
 
@@ -207,7 +228,7 @@ async function runTests() {
         isAdmin: true,
         injected_sql: 'DROP TABLE',
       },
-      headers: { 'x-forwarded-for': '192.168.1.108' },
+      headers: { 'x-forwarded-for': '192.168.1.120' },
     });
 
     if (extraFieldsRes.status === 400 && extraFieldsRes.body.error?.includes('Unexpected field')) {
@@ -229,7 +250,7 @@ async function runTests() {
         phone: '01099998888',
         honeypot: 'I am a bot filled trap',
       },
-      headers: { 'x-forwarded-for': '192.168.1.109' },
+      headers: { 'x-forwarded-for': '192.168.1.121' },
     });
 
     if (honeypotRes.status === 200 && honeypotRes.body.success && honeypotRes.body.ignored) {

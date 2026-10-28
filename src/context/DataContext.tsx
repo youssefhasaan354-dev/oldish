@@ -424,59 +424,64 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         // 3. Flush inquiry retry queue if online via secure /api/submit-inquiry
-        try {
-          const rawRetry = localStorage.getItem(STORAGE_KEY_INQUIRIES_RETRY);
-          if (rawRetry) {
-            const queue: Inquiry[] = JSON.parse(rawRetry);
-            if (Array.isArray(queue) && queue.length > 0) {
-              const remaining: Inquiry[] = [];
-              const flushed: Inquiry[] = [];
-              for (const item of queue) {
-                try {
-                  const flushRes = await fetch('/api/submit-inquiry', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      type: item.type,
-                      name: item.name,
-                      phone: item.phone,
-                      email: item.email,
-                      date: item.date,
-                      time: item.time,
-                      guests: item.guests,
-                      message: item.message,
-                      branch: item.branch,
-                      honeypot: item.honeypot
-                    })
-                  });
-                  const flushData = await flushRes.json().catch(() => null);
-                  if (flushRes.ok && flushData?.success) {
-                    flushed.push({ ...item, id: flushData.id || item.id });
-                  } else {
+        // Note: If Turnstile is active, tokens are single-use and cannot be replayed;
+        // automatic queue flush is skipped to avoid server 403 rejections.
+        const hasTurnstile = Boolean(import.meta.env.VITE_TURNSTILE_SITE_KEY);
+        if (!hasTurnstile) {
+          try {
+            const rawRetry = localStorage.getItem(STORAGE_KEY_INQUIRIES_RETRY);
+            if (rawRetry) {
+              const queue: Inquiry[] = JSON.parse(rawRetry);
+              if (Array.isArray(queue) && queue.length > 0) {
+                const remaining: Inquiry[] = [];
+                const flushed: Inquiry[] = [];
+                for (const item of queue) {
+                  try {
+                    const flushRes = await fetch('/api/submit-inquiry', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        type: item.type,
+                        name: item.name,
+                        phone: item.phone,
+                        email: item.email,
+                        date: item.date,
+                        time: item.time,
+                        guests: item.guests,
+                        message: item.message,
+                        branch: item.branch,
+                        honeypot: item.honeypot
+                      })
+                    });
+                    const flushData = await flushRes.json().catch(() => null);
+                    if (flushRes.ok && flushData?.success) {
+                      flushed.push({ ...item, id: flushData.id || item.id });
+                    } else {
+                      remaining.push(item);
+                    }
+                  } catch {
                     remaining.push(item);
                   }
-                } catch {
-                  remaining.push(item);
+                }
+                if (remaining.length > 0) {
+                  localStorage.setItem(STORAGE_KEY_INQUIRIES_RETRY, JSON.stringify(remaining));
+                } else {
+                  localStorage.removeItem(STORAGE_KEY_INQUIRIES_RETRY);
+                }
+                if (flushed.length > 0 && isMounted) {
+                  setInquiries(prev => {
+                    const existingIds = new Set(prev.map(i => i.id));
+                    const newItems = flushed.filter(i => !existingIds.has(i.id));
+                    const updated = [...newItems, ...prev];
+                    localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
+                    return updated;
+                  });
                 }
               }
-              if (remaining.length > 0) {
-                localStorage.setItem(STORAGE_KEY_INQUIRIES_RETRY, JSON.stringify(remaining));
-              } else {
-                localStorage.removeItem(STORAGE_KEY_INQUIRIES_RETRY);
-              }
-              if (flushed.length > 0 && isMounted) {
-                setInquiries(prev => {
-                  const existingIds = new Set(prev.map(i => i.id));
-                  const newItems = flushed.filter(i => !existingIds.has(i.id));
-                  const updated = [...newItems, ...prev];
-                  localStorage.setItem(STORAGE_KEY_INQUIRIES, JSON.stringify(updated));
-                  return updated;
-                });
-              }
             }
+          } catch (retryErr) {
+            console.warn('Inquiry retry queue flush note:', retryErr);
           }
-        } catch (retryErr) {
-          console.warn('Inquiry retry queue flush note:', retryErr);
         }
       } catch (err) {
         console.error('Error in loadData:', err);
@@ -1302,13 +1307,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         created_at: new Date().toISOString()
       };
 
-      // Queue in localStorage retry queue if network fails
-      try {
-        const rawRetry = localStorage.getItem(STORAGE_KEY_INQUIRIES_RETRY);
-        const queue: Inquiry[] = rawRetry ? JSON.parse(rawRetry) : [];
-        queue.push(newInquiry);
-        localStorage.setItem(STORAGE_KEY_INQUIRIES_RETRY, JSON.stringify(queue));
-      } catch {}
+      // Queue in localStorage retry queue if network fails and Turnstile is not active
+      const hasTurnstile = Boolean(import.meta.env.VITE_TURNSTILE_SITE_KEY);
+      if (!hasTurnstile) {
+        try {
+          const rawRetry = localStorage.getItem(STORAGE_KEY_INQUIRIES_RETRY);
+          const queue: Inquiry[] = rawRetry ? JSON.parse(rawRetry) : [];
+          queue.push(newInquiry);
+          localStorage.setItem(STORAGE_KEY_INQUIRIES_RETRY, JSON.stringify(queue));
+        } catch {}
+      }
 
       return {
         success: false,

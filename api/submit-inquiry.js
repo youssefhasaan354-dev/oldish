@@ -174,7 +174,7 @@ export default async function handler(req, res) {
     cleanEmail = trimmedEmail;
   }
 
-  // Date validation (optional): YYYY-MM-DD
+  // Date validation (optional): YYYY-MM-DD, valid calendar date, and not in the past (Africa/Cairo)
   let cleanDate = null;
   if (date !== undefined && date !== null && String(date).trim() !== '') {
     const trimmedDate = String(date).trim();
@@ -184,6 +184,28 @@ export default async function handler(req, res) {
         error: 'Provided date must match YYYY-MM-DD format.'
       });
     }
+
+    const [year, month, day] = trimmedDate.split('-').map(Number);
+    const parsedDate = new Date(year, month - 1, day);
+    if (
+      parsedDate.getFullYear() !== year ||
+      parsedDate.getMonth() !== month - 1 ||
+      parsedDate.getDate() !== day
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Provided date is not a valid calendar date.'
+      });
+    }
+
+    const todayCairo = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' });
+    if (trimmedDate < todayCairo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Reservation date cannot be in the past.'
+      });
+    }
+
     cleanDate = trimmedDate;
   }
 
@@ -200,14 +222,14 @@ export default async function handler(req, res) {
     cleanTime = trimmedTime;
   }
 
-  // Guests validation (optional): max 20
+  // Guests validation (optional): integer between 1 and 20
   let cleanGuests = null;
   if (guests !== undefined && guests !== null && String(guests).trim() !== '') {
     const numGuests = Number(guests);
-    if (isNaN(numGuests) || numGuests < 1 || numGuests > 20) {
+    if (!Number.isInteger(numGuests) || numGuests < 1 || numGuests > 20) {
       return res.status(400).json({
         success: false,
-        error: 'Party size (guests) must be a positive integer not exceeding 20.'
+        error: 'Party size (guests) must be an integer between 1 and 20.'
       });
     }
     cleanGuests = String(numGuests);
@@ -283,3 +305,4 @@ export default async function handler(req, res) {
     });
   }
 }
+
