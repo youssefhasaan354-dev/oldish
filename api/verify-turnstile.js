@@ -1,5 +1,4 @@
-// In-memory rate limiting map for Turnstile verification
-const ipHits = new Map();
+import { checkRateLimit, getClientIp } from './_lib/rateLimit.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -7,30 +6,17 @@ export default async function handler(req, res) {
   }
 
   // 1. IP Rate Limiting (max 15 requests per 5 minutes per IP)
-  const forwarded = req.headers['x-forwarded-for'];
-  const clientIp = forwarded 
-    ? (Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0].trim()) 
-    : (req.socket?.remoteAddress || 'unknown');
+  const rateLimitResult = await checkRateLimit(req, res, {
+    limit: 15,
+    windowMs: 5 * 60 * 1000,
+    prefix: 'rl:turnstile:'
+  });
 
-  const now = Date.now();
-  const windowMs = 5 * 60 * 1000;
-  const maxHits = 15;
-
-  const currentHits = (ipHits.get(clientIp) || []).filter(t => now - t < windowMs);
-  if (currentHits.length >= maxHits) {
-    res.setHeader('Retry-After', '60');
-    return res.status(429).json({ success: false, error: 'Too many requests. Please try again later.' });
-  }
-  currentHits.push(now);
-  ipHits.set(clientIp, currentHits);
-
-  // Periodic cleanup if map grows large
-  if (ipHits.size > 2000) {
-    for (const [key, timestamps] of ipHits.entries()) {
-      if (timestamps.every(t => now - t >= windowMs)) {
-        ipHits.delete(key);
-      }
-    }
+  if (!rateLimitResult.allowed) {
+    return res.status(429).json({
+      success: false,
+      error: 'Too many requests. Please try again later.'
+    });
   }
 
   const secretKey = process.env.TURNSTILE_SECRET_KEY;
@@ -41,7 +27,9 @@ export default async function handler(req, res) {
 
   let body = req.body;
   if (typeof body === 'string') {
-    try { body = JSON.parse(body); } catch {}
+    try {
+      body = JSON.parse(body);
+    } catch {}
   }
 
   const { token } = body || {};
@@ -53,9 +41,8 @@ export default async function handler(req, res) {
     const formData = new URLSearchParams();
     formData.append('secret', secretKey);
     formData.append('response', token);
-    const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress;
-    if (ip) {
-      const clientIp = Array.isArray(ip) ? ip[0] : ip.split(',')[0].trim();
+    const clientIp = getClientIp(req);
+    if (clientIp && clientIp !== 'unknown') {
       formData.append('remoteip', clientIp);
     }
 

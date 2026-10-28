@@ -66,13 +66,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!isFirebaseConfigured() && isDemoMode) {
           const localSession = localStorage.getItem(STORAGE_KEY_AUTH);
           if (localSession) {
-            const parsed = JSON.parse(localSession);
-            // Check expiration (4 hours)
-            if (Date.now() - parsed.timestamp < 4 * 60 * 60 * 1000) {
-              setUser(parsed.user);
-            } else {
-              localStorage.removeItem(STORAGE_KEY_AUTH);
-            }
+            try {
+              const parsed = JSON.parse(localSession);
+              // Check expiration (4 hours)
+              if (Date.now() - parsed.timestamp < 4 * 60 * 60 * 1000) {
+                setUser(parsed.user);
+              } else {
+                localStorage.removeItem(STORAGE_KEY_AUTH);
+              }
+            } catch {}
           }
         }
       } catch (err) {

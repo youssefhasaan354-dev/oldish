@@ -35,6 +35,7 @@ export const ReservationSection: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSlowNetwork, setIsSlowNetwork] = useState(false);
   const [isOfflineQueued, setIsOfflineQueued] = useState(false);
+  const [isOfflineFailure, setIsOfflineFailure] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
@@ -146,6 +147,7 @@ export const ReservationSection: React.FC = () => {
     setErrors({});
     setSubmitError(null);
     setIsOfflineQueued(false);
+    setIsOfflineFailure(false);
 
     // Lock submission synchronously and start slow connection watchdog
     isSubmittingRef.current = true;
@@ -157,34 +159,14 @@ export const ReservationSection: React.FC = () => {
     }, 2500);
 
     try {
-      // Optional Turnstile server-side verification if site key is configured
-      if (turnstileSiteKey) {
-        if (!turnstileToken) {
-          setSubmitError(
-            isRTL 
-              ? 'يرجى التحقق الأمني من كلاودفلير (Turnstile) للمتابعة.' 
-              : 'Please complete the Cloudflare security verification.'
-          );
-          return;
-        }
-
-        try {
-          const verifyRes = await fetch('/api/verify-turnstile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: turnstileToken })
-          });
-          if (!verifyRes.ok) {
-            setSubmitError(
-              isRTL 
-                ? 'فشل التحقق الأمني. يرجى المحاولة مجدداً أو الاتصال بنا مباشرة.' 
-                : 'Security verification failed. Please try again or call us directly.'
-            );
-            return;
-          }
-        } catch (err) {
-          console.warn('Turnstile verify error:', err);
-        }
+      // Optional Turnstile client-side check if site key is configured
+      if (turnstileSiteKey && !turnstileToken) {
+        setSubmitError(
+          isRTL 
+            ? 'يرجى التحقق الأمني من كلاودفلير (Turnstile) للمتابعة.' 
+            : 'Please complete the Cloudflare security verification.'
+        );
+        return;
       }
 
       const res = await submitInquiry({
@@ -197,22 +179,39 @@ export const ReservationSection: React.FC = () => {
         guests: form.guests,
         message: form.message,
         branch: 'Downtown Cairo',
-        honeypot: form.honeypot
+        honeypot: form.honeypot,
+        turnstileToken
       });
 
       if (res.success) {
         setIsSubmitted(true);
         setSubmitError(null);
       } else {
+        if (window.turnstile && turnstileWidgetId.current) {
+          try { window.turnstile.reset(turnstileWidgetId.current); } catch {}
+          setTurnstileToken('');
+        }
         const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
         if (isOffline) {
-          setIsOfflineQueued(true);
-          setSubmitError(
-            isRTL 
-              ? 'أنت غير متصل بالإنترنت حالياً. تم حفظ بيانات حجزك محلياً في جهازك وسيتم إرسالها تلقائياً فور عودة الاتصال. لتأكيد حجزك فوراً يمكنك الاتصال أو مراسلتنا عبر واتساب:'
-              : 'You are currently offline. Your reservation details are saved locally on your device and will be sent automatically once reconnected. To confirm immediately, please call or message via WhatsApp:'
-          );
+          if (turnstileSiteKey) {
+            setIsOfflineQueued(false);
+            setIsOfflineFailure(true);
+            setSubmitError(
+              isRTL 
+                ? 'أنت غير متصل بالإنترنت حالياً ولم يتم إرسال طلبك. يرجى إعادة الإرسال يدوياً فور عودة الاتصال، أو التواصل معنا مباشرة لتأكيد حجزك عبر الهاتف أو واتساب:'
+                : 'You are currently offline and your reservation request could not be sent. Please submit again manually once reconnected, or contact us directly via phone or WhatsApp:'
+            );
+          } else {
+            setIsOfflineQueued(true);
+            setIsOfflineFailure(false);
+            setSubmitError(
+              isRTL 
+                ? 'أنت غير متصل بالإنترنت حالياً. تم حفظ بيانات حجزك محلياً في جهازك وسيتم إرسالها تلقائياً فور عودة الاتصال. لتأكيد حجزك فوراً يمكنك الاتصال أو مراسلتنا عبر واتساب:'
+                : 'You are currently offline. Your reservation details are saved locally on your device and will be sent automatically once reconnected. To confirm immediately, please call or message via WhatsApp:'
+            );
+          }
         } else {
+          setIsOfflineFailure(false);
           setSubmitError(
             isRTL 
               ? 'تعذر إرسال طلب الحجز إلى النظام حالياً. يرجى الاتصال بنا هاتفياً أو مراسلتنا عبر واتساب لتأكيد حجزك فوراً:' 
@@ -411,15 +410,17 @@ export const ReservationSection: React.FC = () => {
                   role="alert"
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                    {isOfflineQueued ? (
-                      <WifiOff size={20} style={{ color: '#D69E2E', flexShrink: 0 }} />
+                    {(isOfflineQueued || isOfflineFailure) ? (
+                      <WifiOff size={20} style={{ color: isOfflineQueued ? '#D69E2E' : '#E53E3E', flexShrink: 0 }} />
                     ) : (
                       <AlertTriangle size={20} style={{ color: '#E53E3E', flexShrink: 0 }} />
                     )}
                     <strong style={{ fontSize: '1rem', color: isOfflineQueued ? '#744210' : '#9B2C2C' }}>
                       {isOfflineQueued 
                         ? (isRTL ? 'حفظ الحجز في قائمة الانتظار (دون اتصال)' : 'Reservation Saved to Offline Queue')
-                        : (isRTL ? 'تنبيه في إرسال طلب الحجز' : 'Submission Alert')}
+                        : isOfflineFailure
+                          ? (isRTL ? 'تعذر الإرسال (غير متصل بالإنترنت)' : 'Offline: Request Not Sent')
+                          : (isRTL ? 'تنبيه في إرسال طلب الحجز' : 'Submission Alert')}
                     </strong>
                   </div>
                   <p style={{ margin: '0 0 12px 0', fontSize: '0.875rem' }}>

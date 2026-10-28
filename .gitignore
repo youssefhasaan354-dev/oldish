@@ -32,3 +32,9 @@ lerna-debug.log*
 # Test and Audit Artifacts
 lighthouse*.json
 screenshot*.png
+
+# Temporary fix archives & patches
+oldish-fixes/
+oldish-fixes.zip
+oldish-fix.patch
+
