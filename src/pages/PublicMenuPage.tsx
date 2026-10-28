@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
 import type { MenuItem } from '../types';
@@ -39,9 +39,32 @@ export const PublicMenuPage: React.FC = () => {
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'alpha'>('default');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
+  const [visibleCount, setVisibleCount] = useState<number>(12);
+  const filterKey = `${selectedCategory}|${selectedTag}|${searchQuery}|${selectedPriceRange}|${selectedAvailability}|${selectedBranch}|${sortBy}`;
+  const [prevFilterKey, setPrevFilterKey] = useState<string>(filterKey);
+
+  // Reset pagination count during render when filters/search/category change
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setVisibleCount(12);
+  }
+
+  const [isPrinting, setIsPrinting] = useState<boolean>(false);
 
   // Detail Modal State
   const [activeModalItem, setActiveModalItem] = useState<MenuItem | null>(null);
+
+  // Print event handlers to guarantee all items are printed
+  useEffect(() => {
+    const handleBeforePrint = () => setIsPrinting(true);
+    const handleAfterPrint = () => setIsPrinting(false);
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, []);
 
   // Customer published items
   const customerItems = useMemo(() => {
@@ -171,11 +194,23 @@ export const PublicMenuPage: React.FC = () => {
     setSelectedTag('all');
     setSearchQuery('');
     setSortBy('default');
+    setVisibleCount(12);
   };
 
   const handlePrint = () => {
-    window.print();
+    setIsPrinting(true);
+    setTimeout(() => {
+      window.print();
+    }, 50);
   };
+
+  const isSearching = searchQuery.trim() !== '';
+  const displayedItems = (isSearching || isPrinting) ? filteredItems : filteredItems.slice(0, visibleCount);
+  const printOnlyItems = (!isSearching && !isPrinting) ? filteredItems.slice(visibleCount) : [];
+  const itemsToRender = [
+    ...displayedItems.map(item => ({ item, isPrintOnly: false })),
+    ...printOnlyItems.map(item => ({ item, isPrintOnly: true }))
+  ];
 
   const cleanWhatsapp = siteSettings.whatsapp.replace(/[^0-9]/g, '');
   const hasWhatsapp = Boolean(siteSettings.whatsapp && siteSettings.whatsapp.trim());
@@ -543,8 +578,8 @@ export const PublicMenuPage: React.FC = () => {
           }}>
             <span>
               {isRTL 
-                ? `عرض ${filteredItems.length} من أصل ${totalVisibleCount} صنف موثق`
-                : `Showing ${filteredItems.length} of ${totalVisibleCount} verified dishes`}
+                ? `عرض ${displayedItems.length} من أصل ${filteredItems.length} صنف موثق`
+                : `Showing ${displayedItems.length} of ${filteredItems.length} verified dishes`}
               {searchQuery && ` • ${isRTL ? 'نتائج البحث عن' : 'search for'} "${searchQuery}"`}
             </span>
             {hasActiveFilters && (
@@ -601,7 +636,7 @@ export const PublicMenuPage: React.FC = () => {
           </div>
         ) : (
           <div className="menu-items-grid" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {filteredItems.map((item) => {
+            {itemsToRender.map(({ item, isPrintOnly }) => {
               const isUnavailable = item.is_unavailable || item.available === false;
               const formattedPrice = formatPrice(item, isRTL);
               const catObj = menuCategories.find(c => c.id === item.category_id);
@@ -609,14 +644,14 @@ export const PublicMenuPage: React.FC = () => {
               return (
                 <div 
                   key={item.id}
-                  className="menu-item-card"
+                  className={`menu-item-card ${isPrintOnly ? 'menu-item-print-only' : ''}`}
                   onClick={() => setActiveModalItem(item)}
                   style={{
                     background: '#FFFFFF',
                     borderRadius: '6px',
                     padding: '16px',
                     border: item.is_signature ? '1.5px solid var(--color-gold, #886E42)' : '1px solid rgba(0,0,0,0.08)',
-                    display: 'flex',
+                    display: isPrintOnly ? undefined : 'flex',
                     gap: '16px',
                     alignItems: 'flex-start',
                     boxShadow: item.is_signature ? '0 4px 12px rgba(136, 110, 66, 0.12)' : 'var(--shadow-subtle)',
@@ -725,6 +760,27 @@ export const PublicMenuPage: React.FC = () => {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Show more button */}
+        {!isSearching && visibleCount < filteredItems.length && (
+          <div style={{ textAlign: 'center', marginTop: '24px' }} className="no-print">
+            <button
+              type="button"
+              onClick={() => setVisibleCount(prev => prev + 12)}
+              className="btn btn-outline-gold"
+              style={{
+                minWidth: '200px',
+                padding: '10px 24px',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                boxShadow: '0 2px 8px rgba(136, 110, 66, 0.12)',
+                cursor: 'pointer'
+              }}
+            >
+              {isRTL ? 'عرض المزيد' : 'Show more'}
+            </button>
           </div>
         )}
 

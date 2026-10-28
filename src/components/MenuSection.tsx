@@ -32,6 +32,16 @@ export const MenuSection: React.FC = () => {
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'alpha'>('default');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
+  // Pagination state (12 items per page / active category)
+  const [visibleCount, setVisibleCount] = useState<number>(12);
+  const filterKey = `${selectedCategory}|${selectedTag}|${searchQuery}|${selectedPriceRange}|${selectedAvailability}|${selectedBranch}|${sortBy}`;
+  const [prevFilterKey, setPrevFilterKey] = useState<string>(filterKey);
+
+  // Reset pagination count during render when filters/search/category change
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setVisibleCount(12);
+  }
 
   // Modal detail view
   const [activeModalItem, setActiveModalItem] = useState<MenuItem | null>(null);
@@ -166,7 +176,11 @@ export const MenuSection: React.FC = () => {
     setSelectedTag('all');
     setSearchQuery('');
     setSortBy('default');
+    setVisibleCount(12);
   };
+
+  const isSearching = searchQuery.trim() !== '';
+  const displayedItems = isSearching ? filteredItems : filteredItems.slice(0, visibleCount);
 
   const menuSec = sections.find(s => s.key === 'menu');
   if (menuSec && !menuSec.visible) {
@@ -421,8 +435,8 @@ export const MenuSection: React.FC = () => {
           }}>
             <span>
               {isRTL 
-                ? `عرض ${filteredItems.length} من أصل ${totalVisibleCount} صنف موثق`
-                : `Showing ${filteredItems.length} of ${totalVisibleCount} verified dishes`}
+                ? `عرض ${displayedItems.length} من أصل ${filteredItems.length} صنف موثق`
+                : `Showing ${displayedItems.length} of ${filteredItems.length} verified dishes`}
               {searchQuery && ` • ${isRTL ? 'نتائج البحث عن' : 'search for'} "${searchQuery}"`}
             </span>
             {hasActiveFilters && (
@@ -478,7 +492,7 @@ export const MenuSection: React.FC = () => {
           </div>
         ) : (
           <div className="menu-grid">
-            {filteredItems.map((item) => {
+            {displayedItems.map((item) => {
               const isUnavailable = item.is_unavailable || item.available === false;
               const formattedPrice = formatPrice(item, isRTL);
               const catObj = menuCategories.find(c => c.id === item.category_id);
@@ -650,6 +664,27 @@ export const MenuSection: React.FC = () => {
                 </article>
               );
             })}
+          </div>
+        )}
+
+        {/* Show more button */}
+        {!isSearching && visibleCount < filteredItems.length && (
+          <div style={{ textAlign: 'center', marginTop: 'var(--space-8)' }} className="no-print">
+            <button
+              type="button"
+              onClick={() => setVisibleCount(prev => prev + 12)}
+              className="btn btn-outline-gold"
+              style={{
+                minWidth: '220px',
+                padding: '12px 28px',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                boxShadow: '0 2px 8px rgba(136, 110, 66, 0.15)',
+                cursor: 'pointer'
+              }}
+            >
+              {isRTL ? 'عرض المزيد' : 'Show more'}
+            </button>
           </div>
         )}
 

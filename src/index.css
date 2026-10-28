@@ -591,12 +591,23 @@ html[dir="rtl"] .editorial-content h3 {
 #atmosphere,
 #story,
 #gallery,
-#menu,
-#location,
-#reservation,
+#reviews,
+#locations,
+#reservations,
 #instagram-strip {
   content-visibility: auto;
-  contain-intrinsic-size: 1px 600px;
+  contain-intrinsic-size: auto 800px;
+}
+
+/* Printable menu extra items (hidden on screen, visible when printing) */
+.menu-item-print-only {
+  display: none !important;
+}
+
+@media print {
+  .menu-item-print-only {
+    display: flex !important;
+  }
 }
 
 /* Accessibility: Visible Focus Rings & Skip Link */

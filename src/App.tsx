@@ -70,7 +70,10 @@ const PublicLandingPage: React.FC = () => {
 
   // Scroll reveal animation observer (IntersectionObserver, CSS only transitions)
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.querySelectorAll('.reveal-on-scroll').forEach(el => el.classList.add('is-revealed'));
+      return;
+    }
 
     const revealElements = document.querySelectorAll('.reveal-on-scroll');
     if (!revealElements.length) return;
@@ -82,10 +85,21 @@ const PublicLandingPage: React.FC = () => {
           observer.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+    }, { threshold: 0, rootMargin: '0px 0px -40px 0px' });
 
     revealElements.forEach(el => observer.observe(el));
-    return () => observer.disconnect();
+
+    // Fallback safety net (~2.5s after mount) to guarantee no tall section stays hidden
+    const fallbackTimer = window.setTimeout(() => {
+      document.querySelectorAll('.reveal-on-scroll:not(.is-revealed)').forEach(el => {
+        el.classList.add('is-revealed');
+      });
+    }, 2500);
+
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(fallbackTimer);
+    };
   }, []);
 
   return (
@@ -96,7 +110,7 @@ const PublicLandingPage: React.FC = () => {
         <Hero />
         <div className="reveal-on-scroll"><StorySection /></div>
         <div className="reveal-on-scroll"><AtmosphereSection /></div>
-        <div className="reveal-on-scroll"><MenuSection /></div>
+        <MenuSection />
         <div className="reveal-on-scroll"><GallerySection /></div>
         {siteSettings.instagram_strip_enabled && <div className="reveal-on-scroll"><InstagramStripSection /></div>}
         <div className="reveal-on-scroll"><ReviewsSection /></div>
