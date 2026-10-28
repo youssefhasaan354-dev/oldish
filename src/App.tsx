@@ -23,6 +23,7 @@ import { ReservationSection } from './components/ReservationSection';
 import { LocationContactSection } from './components/LocationContactSection';
 import { Footer } from './components/Footer';
 import { FloatingActions } from './components/FloatingActions';
+import { FloatingQuickButtons } from './components/FloatingQuickButtons';
 
 // Public Standalone Menu Page (Direct import to eliminate dynamic chunk round-trip on /menu)
 import { PublicMenuPage } from './pages/PublicMenuPage';
@@ -119,6 +120,7 @@ const PublicLandingPage: React.FC = () => {
       </main>
       <Footer />
       <FloatingActions />
+      <FloatingQuickButtons />
       {isAuthenticated && (
         <Suspense fallback={null}>
           <VisualImageEditToolbar />

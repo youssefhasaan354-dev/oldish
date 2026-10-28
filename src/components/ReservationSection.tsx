@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
 import { Phone, Calendar, Clock, Users, User, Mail, CheckCircle, AlertTriangle, Send, MessageCircle, Loader2, WifiOff } from 'lucide-react';
+import { toWhatsappNumber } from '../lib/whatsapp';
 
 declare global {
   interface Window {
@@ -232,7 +233,7 @@ export const ReservationSection: React.FC = () => {
     return null;
   }
 
-  const cleanWhatsapp = (siteSettings.whatsapp || siteSettings.phone || '201060119488').replace(/[^0-9]/g, '');
+  const cleanWhatsapp = toWhatsappNumber(siteSettings.whatsapp || siteSettings.phone || '201060119488');
 
   const getWhatsAppBookingUrl = () => {
     const lines: string[] = [];
@@ -435,7 +436,7 @@ export const ReservationSection: React.FC = () => {
                     </a>
                     {siteSettings.whatsapp && (
                       <a
-                        href={`https://wa.me/${siteSettings.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                        href={`https://wa.me/${toWhatsappNumber(siteSettings.whatsapp)}?text=${encodeURIComponent(
                           isRTL 
                             ? `مرحباً، أود حجز طاولة في أولديش باسم ${form.name || ''} لتاريخ ${form.date || ''}` 
                             : `Hello, I would like to reserve a table at Oldish for ${form.name || ''} on ${form.date || ''}`

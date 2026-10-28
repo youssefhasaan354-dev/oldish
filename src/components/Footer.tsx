@@ -13,7 +13,7 @@ export const Footer: React.FC = () => {
   const darkLogoUrl = siteSettings.logo_dark_url || imageSlots['branding.logo_dark']?.media_url;
 
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const visibleSections = sections.filter(s => s.visible).sort((a, b) => a.sort_order - b.sort_order);

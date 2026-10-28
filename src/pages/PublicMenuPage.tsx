@@ -24,6 +24,8 @@ import { EditableImageSlot } from '../components/EditableImageSlot';
 import { searchMatches } from '../lib/searchUtils';
 import { formatPrice, getItemPriceNumber } from '../lib/priceUtils';
 import { ProductDetailsModal } from '../components/ProductDetailsModal';
+import { FloatingQuickButtons } from '../components/FloatingQuickButtons';
+import { toWhatsappNumber } from '../lib/whatsapp';
 
 export const PublicMenuPage: React.FC = () => {
   useNoIndex();
@@ -212,8 +214,8 @@ export const PublicMenuPage: React.FC = () => {
     ...printOnlyItems.map(item => ({ item, isPrintOnly: true }))
   ];
 
-  const cleanWhatsapp = siteSettings.whatsapp.replace(/[^0-9]/g, '');
-  const hasWhatsapp = Boolean(siteSettings.whatsapp && siteSettings.whatsapp.trim());
+  const cleanWhatsapp = toWhatsappNumber(siteSettings.whatsapp);
+  const hasWhatsapp = Boolean(cleanWhatsapp);
   const whatsappMessage = encodeURIComponent(
     isRTL 
       ? 'مرحباً، أود الاستفسار عن أصناف منيو مطعم وكافيه أولديش.' 
@@ -820,6 +822,7 @@ export const PublicMenuPage: React.FC = () => {
         branches={branches}
         onClose={() => setActiveModalItem(null)}
       />
+      <FloatingQuickButtons />
     </main>
   );
 };

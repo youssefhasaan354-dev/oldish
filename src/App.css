@@ -1713,6 +1713,56 @@ html[dir="rtl"] .floating-action-item {
   background: rgba(255, 255, 255, 0.05);
 }
 
+/* --------------------------------------------------------------------------
+   FLOATING WHATSAPP + BACK-TO-TOP BUTTONS
+   -------------------------------------------------------------------------- */
+.fab {
+  position: fixed;
+  right: 20px;
+  z-index: 880;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  transition: transform var(--transition-fast), opacity var(--transition-fast), background var(--transition-fast);
+}
+.fab:hover { transform: translateY(-2px); }
+.fab-whatsapp {
+  display: none;
+  bottom: 84px;
+  background: #25D366;
+  text-decoration: none;
+}
+.fab-top {
+  bottom: 24px;
+  width: 44px;
+  height: 44px;
+  right: 24px;
+  background: var(--color-gold);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+}
+.fab-top.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.fab-top.is-visible:hover { background: var(--color-gold-dark); transform: translateY(-2px); }
+@media (min-width: 992px) {
+  .fab-whatsapp { display: inline-flex; bottom: 78px; }
+}
+@media (max-width: 991px) {
+  /* sit above the bottom action bar */
+  .fab-top { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); right: 14px; }
+}
+
 /* Prevent floating mobile bar from covering content / footer */
 @media (max-width: 991px) {
   .site-wrapper, .standalone-menu-view {

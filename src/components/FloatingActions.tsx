@@ -3,6 +3,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useData } from '../context/DataContext';
 import { Phone, Calendar, Navigation, Utensils, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toWhatsappNumber } from '../lib/whatsapp';
 
 export const FloatingActions: React.FC = () => {
   const { isRTL } = useLanguage();
@@ -14,8 +15,8 @@ export const FloatingActions: React.FC = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const cleanWhatsapp = siteSettings.whatsapp.replace(/[^0-9]/g, '');
-  const hasWhatsapp = Boolean(siteSettings.whatsapp && siteSettings.whatsapp.trim());
+  const cleanWhatsapp = toWhatsappNumber(siteSettings.whatsapp);
+  const hasWhatsapp = Boolean(cleanWhatsapp);
 
   const whatsappMessage = encodeURIComponent(
     isRTL 
